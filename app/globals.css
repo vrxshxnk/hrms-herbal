@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@layer utilities {
+  /* Base background: near-black, not crimson */
+  .bg-theme-dark {
+    background-color: #0A0A0A;
+  }
+
+  /* The diagonal orange glow streak seen behind the hero/stats sections */
+  .bg-theme-glow {
+    background:
+      radial-gradient(ellipse 800px 400px at 70% 30%, rgba(255, 94, 43, 0.25) 0%, transparent 60%),
+      radial-gradient(ellipse 600px 500px at 20% 80%, rgba(255, 94, 43, 0.12) 0%, transparent 60%),
+      #0A0A0A;
+  }
+
+  /* Flat dark cards with a hairline border, no crimson tint */
+  .bg-theme-card {
+    background-color: #0F0F0F;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  /* Slightly lighter surface for nested/secondary panels */
+  .bg-theme-surface {
+    background-color: #141414;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  /* Orange accent glow for buttons / active nav items */
+  .glow-orange {
+    box-shadow: 0 0 25px rgba(255, 94, 43, 0.35);
+  }
+
+  /* The orange gradient button (e.g. "Try a Free Demo Now") */
+  .bg-orange-gradient {
+    background: linear-gradient(135deg, #FF5E2B 0%, #E8460F 100%);
+  }
+
+  /* White-to-gray heading text gradient like "Zero Hassle" */
+  .text-fade-gradient {
+    background: linear-gradient(90deg, #FFFFFF 0%, #B0B0B0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Circular numbered step badges (01, 02, 03) */
+  .bg-step-circle {
+    background: radial-gradient(circle, #3A1610 0%, #1A0805 100%);
+    border: 1px solid rgba(255, 94, 43, 0.25);
+  }
+}
