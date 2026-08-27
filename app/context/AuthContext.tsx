@@ -39,11 +39,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       initialized.current = true;
 
       try {
+        console.log("BEFORE KEYCLOAK INIT");
         const auth = await keycloak.init({
           onLoad: "check-sso",
           pkceMethod: "S256",
         });
-
+        console.log("AFTER KEYCLOAK INIT", auth);
         setAuthenticated(auth);
 
         if (auth && keycloak.token) {

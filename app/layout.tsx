@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
+import DashboardLayout from "./components/DashboardLayout";
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-jakarta",
+});
 
 export const metadata: Metadata = {
   title: "HRMS Portal",
@@ -13,10 +21,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={jakarta.variable}>
+      <body className="font-sans antialiased bg-[#F8FAFC] text-[#1E293B]">
         <AuthProvider>
-          {children}
+          <DashboardLayout>{children}</DashboardLayout>
         </AuthProvider>
       </body>
     </html>

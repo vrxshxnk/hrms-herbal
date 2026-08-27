@@ -2,7 +2,6 @@ import { apiError, ok } from "@/app/lib/api/response";
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { parseJson } from "@/app/lib/api/validation";
 import { createEmployeeSchema } from "@/app/validations/phase1_schema";
-import { success } from "zod";
 
 
 export async function GET(request: Request) {
