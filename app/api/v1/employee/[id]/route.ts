@@ -1,15 +1,17 @@
-import { getPool } from "@/app/lib/api/client";
+import { getPool, withTranscations } from "@/app/lib/api/client";
 import { apiError, ok } from "@/app/lib/api/response";
+import { parseJson } from "@/app/lib/api/validation";
+import { createEmployeeSchema } from "@/app/validations/phase1_schema";
 
 
-
-
-
-export async function GET(request : Request, {params}:{params: Promise<{id:string}>}){
-      const {id}= await params;
-      const client = await getPool().connect();
-      try {
-        const singleQuery= `
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const client = await getPool().connect();
+  try {
+    const singleQuery = `
           SELECT  
                 e.*,
                 le.name AS legal_entity_name,
@@ -34,30 +36,38 @@ export async function GET(request : Request, {params}:{params: Promise<{id:strin
             WHERE e.id = $1;
             `;
 
-        const result = await client.query(singleQuery,[id]);
-        if (result.rows.length === 0) {
-            return apiError("NOT_FOUND", "Employee not found", 404);
-        }
-         return ok(result.rows[0]);
-      } catch (error) {
-         console.error("Error fetching employee by ID:", error);
-         return apiError("INTERNAL_ERROR", "Failed to fetch employee", 500);
-      }finally {
-         client.release();
-       }
+    const result = await client.query(singleQuery, [id]);
+    if (result.rows.length === 0) {
+      return apiError("NOT_FOUND", "Employee not found", 404);
+    }
+    return ok(result.rows[0]);
+  } catch (error) {
+    console.error("Error fetching employee by ID:", error);
+    return apiError("INTERNAL_ERROR", "Failed to fetch employee", 500);
+  } finally {
+    client.release();
+  }
 }
 
-
-export async function DELETE(request: Request, { params }: {params: Promise<{id:string}>}) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
   const { id } = await params;
   const client = await getPool().connect();
 
   try {
     const result = await client.query(
-      `DELETE FROM employees WHERE id = $1 RETURNING id`,
-      [id]
+      `UPDATE employees 
+       SET 
+         status='inactive', updated_at=NOW()
+       WHERE id=$1
+       RETURNING id
+       `,       
+      [id],
     );
 
+  
     if (result.rows.length === 0) {
       return apiError("NOT_FOUND", "Employee not found", 404);
     }
@@ -68,5 +78,49 @@ export async function DELETE(request: Request, { params }: {params: Promise<{id:
     return apiError("INTERNAL_ERROR", "Failed to delete employee", 500);
   } finally {
     client.release();
+  }
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const { id } = await params;
+  const parsed = await parseJson(request, createEmployeeSchema);
+  if (parsed.error) return parsed.error;
+  const data = parsed.data;
+
+  console.log("data is :", data); 
+  const keys = Object.keys(data);
+
+  if (keys.length === 0) {
+    return apiError("BAD_REQUEST", "No valid fields provided to update", 400);
+  }
+
+  try {
+    const updatedRecord = await withTranscations(async (client) => {
+      const setClause = keys.map((key, index) => `"${key}" = $${index + 1}`).join(", ");
+      const values = Object.values(data);
+      const targetIdIndex = values.length + 1;
+      const updateQuery = `
+        UPDATE employees 
+        SET ${setClause}, updated_at = NOW()
+        WHERE id = $${targetIdIndex}
+        RETURNING *;
+      `;
+
+      const result = await client.query(updateQuery, [...values, id]);
+      if (result.rows.length === 0) {
+        return null;
+      }
+      return result.rows[0];
+    });
+    if (!updatedRecord) {
+      return apiError("NOT_FOUND", "Employee not found", 404);
+    }
+    return ok(updatedRecord, { message: "Employee updated successfully", success:true });
+  } catch (error) {
+    console.error("Error updating employee:", error);
+    return apiError("INTERNAL_ERROR", "Failed to update employee", 500);
   }
 }

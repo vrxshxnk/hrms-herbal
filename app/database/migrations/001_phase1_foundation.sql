@@ -164,3 +164,35 @@ create table if not exists employee_audit_logs (
     change_source varchar(50) default 'web_hrms',
     created_at timestamp with time zone default current_timestamp
 );
+
+
+create table if not exists leave_types (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    code VARCHAR(50) UNIQUE NOT NULL, 
+    name VARCHAR(100) NOT NULL, 
+    is_paid BOOLEAN DEFAULT true,
+    max_days_per_year DECIMAL(4, 1),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT current_timestamp
+);
+
+
+create table if not exists leave_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    leave_type_id UUID NOT NULL REFERENCES leave_types(id),
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL, 
+    total_days DECIMAL(4, 1) NOT NULL, 
+    half_day_type VARCHAR(20) DEFAULT 'full_day', 
+    reason TEXT,
+    rejection_reason TEXT,
+    approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    action_taken_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT current_timestamp,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT current_timestamp,
+    CONSTRAINT chk_date_range CHECK (end_date >= start_date)
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_leave_requests_emp_id ON leave_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);

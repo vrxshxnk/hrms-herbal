@@ -10,7 +10,6 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
- 
     const search = searchParams.get("search");
     const status = searchParams.get("status") || "active";
     const departmentId = searchParams.get("department_id");
@@ -87,7 +86,6 @@ export async function GET(request: Request) {
       client.query(listQuery, [...queryParams, limit, offset]),
       client.query(countQuery, queryParams),
     ]);
-
     const total = parseInt(countResult.rows[0].count, 10);
 
     return ok({

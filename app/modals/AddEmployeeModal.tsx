@@ -1,34 +1,66 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
+import { Employee } from "../employee/page";
 
 type AddEmployeeModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  employeeToEdit?: Employee | null;
+};
+
+const initialFormState = {
+  fullName: "",
+  work_email: "",
+  mobile_number: "",
+  gender: "male",
+  date_of_birth: "",
+  marital_status: "single",
+  joining_date: "",
+  status: "active",
+  department_id: "",
+  designation_id: "",
 };
 
 export const AddEmployeeModal = ({
   isOpen,
   onClose,
   onSuccess,
+  employeeToEdit,
 }: AddEmployeeModalProps) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [formData, setFormData] = useState(initialFormState);
 
-  const [formData, setFormData] = useState({
-    fullName: "",
-    work_email: "",
-    mobile_number: "",
-    gender: "male",
-    date_of_birth: "",
-    marital_status: "single",
-    joining_date: "",
-    status: "active",
-    department_id: "",
-    designation_id: "",
-  });
+  const isEditMode = Boolean(employeeToEdit);
+
+  useEffect(() => {
+    if (employeeToEdit) {
+      setFormData({
+        fullName:
+          employeeToEdit.display_name ||
+          `${employeeToEdit.first_name} ${employeeToEdit.last_name}`,
+        work_email: employeeToEdit.work_email || "",
+        mobile_number: employeeToEdit.mobile_number || "",
+        gender: employeeToEdit.gender || "male",
+        date_of_birth: employeeToEdit.date_of_birth
+          ? new Date(employeeToEdit.date_of_birth).toISOString().split("T")[0]
+          : "",
+        marital_status: employeeToEdit.marital_status || "single",
+        joining_date: employeeToEdit.joining_date
+          ? new Date(employeeToEdit.joining_date).toISOString().split("T")[0]
+          : "",
+        status: employeeToEdit.status || "active",
+        department_id: employeeToEdit.department_id || "",
+        designation_id: employeeToEdit.designation_id || "",
+      });
+    } else {
+      setFormData(initialFormState);
+    }
+  }, [employeeToEdit, isOpen]);
 
   if (!isOpen) return null;
 
@@ -42,13 +74,17 @@ export const AddEmployeeModal = ({
     e.preventDefault();
     setLoading(true);
     setErrorMsg(null);
+    setSuccessMsg(null);
 
     const nameParts = formData.fullName.trim().split(" ");
     const first_name = nameParts[0] || "";
-    const last_name = nameParts.length > 1 ? nameParts.slice(1).join(" ") : "N/A";
+    const last_name =
+      nameParts.length > 1 ? nameParts.slice(1).join(" ") : "N/A";
 
     const payload = {
-      employee_code: `EMP-${Date.now().toString().slice(-6)}`,
+      employee_code: employeeToEdit
+        ? employeeToEdit.employee_code
+        : `EMP-${Date.now().toString().slice(-6)}`,
       first_name,
       last_name,
       display_name: formData.fullName,
@@ -67,19 +103,32 @@ export const AddEmployeeModal = ({
     };
 
     try {
-      const res = await fetch("/api/v1/employee", {
-        method: "POST",
+      const url = isEditMode
+        ? `/api/v1/employee/${employeeToEdit?.id}`
+        : "/api/v1/employee";
+      const method = isEditMode ? "PATCH" : "POST";
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const result = await res.json();
-
-      if (res.ok && result.success) {
-        onSuccess();
-        onClose();
+      if (res.ok && (result.meta?.success || result.success)) {
+        setSuccessMsg(
+          result.meta?.message ||
+            `Employee ${isEditMode ? "updated" : "created"} successfully`
+        );
+        await onSuccess();
+        setTimeout(() => {
+          onClose();
+          setSuccessMsg(null);
+        }, 1200);
       } else {
-        setErrorMsg(result.message || "Failed to create employee");
+        setErrorMsg(
+          result.message ||
+            `Failed to ${isEditMode ? "update" : "create"} employee`
+        );
       }
     } catch (err) {
       console.error("API error:", err);
@@ -93,7 +142,9 @@ export const AddEmployeeModal = ({
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">Add Employee</h2>
+          <h2 className="text-lg font-bold text-slate-800">
+            {isEditMode ? "Edit Employee" : "Add Employee"}
+          </h2>
           <button
             onClick={onClose}
             type="button"
@@ -103,10 +154,19 @@ export const AddEmployeeModal = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4 max-h-[80vh] overflow-y-auto">
+        <form
+          onSubmit={handleSubmit}
+          className="p-5 space-y-4 max-h-[80vh] overflow-y-auto"
+        >
           {errorMsg && (
             <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-medium">
               {errorMsg}
+            </div>
+          )}
+
+          {successMsg && (
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-medium">
+              {successMsg}
             </div>
           )}
 
@@ -243,7 +303,13 @@ export const AddEmployeeModal = ({
               className="w-full flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {loading ? "Saving..." : "Save Employee"}
+              {loading
+                ? isEditMode
+                  ? "Updating..."
+                  : "Saving..."
+                : isEditMode
+                ? "Update Employee"
+                : "Save Employee"}
             </button>
           </div>
         </form>

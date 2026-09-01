@@ -151,7 +151,7 @@ export const createEmployeeSchema = z.object({
 
   // Child Info
   identities: identityInputSchema.optional(),
-  emergency_contacts: z.array(emergencyContactInputSchema).optional().default([]),
+  // emergency_contacts: z.array(emergencyContactInputSchema).optional().default([]),
 });
 
 // -----------------------------------------------------------------------------
