@@ -107,6 +107,24 @@ const EmployeePage = () => {
     });
   };
 
+
+  const handleDeleteEmp = async (id: string) => {
+  if (!confirm("Are you sure you want to deactivate this employee?")) return;
+  try {
+    const res = await fetch(`/api/v1/employee/${id}`, {
+      method: "DELETE",
+    });
+    const json = await res.json();
+    if (!res.ok) {
+      throw new Error(json.message || "Failed to delete employee");
+    }
+    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+  } catch (error: any) {
+    console.error("Error deleting employee:", error);
+    alert(error.message || "An error occurred while deleting.");
+  }
+};
+
   return (
     <div className="space-y-6">
       {openMenuId !== null && (
@@ -265,6 +283,7 @@ const EmployeePage = () => {
                           <button
                             onClick={() => {
                               console.log("Delete employee:", emp.id);
+                              handleDeleteEmp(emp.id);
                               setOpenMenuId(null);
                             }}
                             className="w-full px-4 py-2 text-xs font-medium text-rose-600 hover:bg-rose-50 transition-colors"

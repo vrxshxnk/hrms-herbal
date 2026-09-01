@@ -166,6 +166,7 @@ create table if not exists employee_audit_logs (
 );
 
 
+
 create table if not exists leave_types (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) UNIQUE NOT NULL, 
@@ -175,8 +176,7 @@ create table if not exists leave_types (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT current_timestamp
 );
 
-
-create table if not exists leave_requests (
+create table if not exists  leave_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
     leave_type_id UUID NOT NULL REFERENCES leave_types(id),
@@ -184,6 +184,7 @@ create table if not exists leave_requests (
     end_date DATE NOT NULL, 
     total_days DECIMAL(4, 1) NOT NULL, 
     half_day_type VARCHAR(20) DEFAULT 'full_day', 
+    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', )),
     reason TEXT,
     rejection_reason TEXT,
     approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
