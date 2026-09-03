@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { AddEmployeeModal } from "../modals/AddEmployeeModal";
 import Link from "next/link";
+import { useAuth } from "../context/AuthContext";
 
 export type Employee = {
   id: string;
@@ -43,8 +44,12 @@ const EmployeePage = () => {
   const [search, setSearch] = useState<string>("");
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    null,
+  );
 
+  const { hasRole, roles, token } = useAuth();
+  console.log("Roles hain : ", hasRole, roles);
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
@@ -52,7 +57,11 @@ const EmployeePage = () => {
       if (search) params.append("search", search);
       params.append("status", activeTab === "employee" ? "active" : "on_leave");
 
-      const response = await fetch(`/api/v1/employee?${params.toString()}`);
+      const response = await fetch(`/api/v1/employee?${params.toString()}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) {
         console.error(`API Error: ${response.status} ${response.statusText}`);
         return;
@@ -107,23 +116,22 @@ const EmployeePage = () => {
     });
   };
 
-
   const handleDeleteEmp = async (id: string) => {
-  if (!confirm("Are you sure you want to deactivate this employee?")) return;
-  try {
-    const res = await fetch(`/api/v1/employee/${id}`, {
-      method: "DELETE",
-    });
-    const json = await res.json();
-    if (!res.ok) {
-      throw new Error(json.message || "Failed to delete employee");
+    if (!confirm("Are you sure you want to deactivate this employee?")) return;
+    try {
+      const res = await fetch(`/api/v1/employee/${id}`, {
+        method: "DELETE",
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.message || "Failed to delete employee");
+      }
+      setEmployees((prev) => prev.filter((emp) => emp.id !== id));
+    } catch (error: any) {
+      console.error("Error deleting employee:", error);
+      alert(error.message || "An error occurred while deleting.");
     }
-    setEmployees((prev) => prev.filter((emp) => emp.id !== id));
-  } catch (error: any) {
-    console.error("Error deleting employee:", error);
-    alert(error.message || "An error occurred while deleting.");
-  }
-};
+  };
 
   return (
     <div className="space-y-6">
@@ -134,7 +142,6 @@ const EmployeePage = () => {
         />
       )}
 
-   
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
@@ -264,7 +271,7 @@ const EmployeePage = () => {
                       <button
                         onClick={() =>
                           setOpenMenuId((prev) =>
-                            prev === emp.id ? null : emp.id
+                            prev === emp.id ? null : emp.id,
                           )
                         }
                         className="text-slate-400 hover:text-slate-600 p-1 rounded-md transition-colors"

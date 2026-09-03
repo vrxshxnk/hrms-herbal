@@ -9,15 +9,18 @@ import {
   useState,
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import keycloak from "../lib/keycloak";// Make sure this path is correct
+import keycloak from "../lib/keycloak";
 
 interface AuthContextType {
   authenticated: boolean;
   token: string | null;
   user: any;
+  dbUser: any;
+  roles: string[];
   loading: boolean;
   login: () => void;
   logout: () => void;
+  hasRole: (role: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -31,7 +34,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [authenticated, setAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<any>(null);
+  const [dbUser, setDbUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [roles, setRoles] = useState<string[]>([]);
+
+  // Function to perform backend sync
+  const syncWithDatabase = async () => {
+    try {
+      if (!keycloak.token) {
+        return;
+      }
+      const res = await fetch("/api/v1/auth/sync", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${keycloak.token}`,
+        },
+      });
+      const json = await res.json();
+      console.log("sync response:", json);
+      if (res.ok && json.data?.employee) {
+        setDbUser(json.data.employee);
+      } else if (res.ok && json.employee) {
+        setDbUser(json.employee);
+      }
+    } catch (error) {
+      console.error("Failed to sync employee with database:", error);
+    }
+  };
 
   useEffect(() => {
     const initKeycloak = async () => {
@@ -39,18 +68,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       initialized.current = true;
 
       try {
-        console.log("BEFORE KEYCLOAK INIT");
         const auth = await keycloak.init({
           onLoad: "check-sso",
           pkceMethod: "S256",
         });
-        console.log("AFTER KEYCLOAK INIT", auth);
         setAuthenticated(auth);
 
         if (auth && keycloak.token) {
           setToken(keycloak.token);
           setUser(keycloak.tokenParsed || null);
-          document.cookie = `kc_token=${keycloak.token}; path=/; SameSite=Lax; Max-Age=3600`;
+          const userRoles =
+            keycloak.tokenParsed?.resource_access?.["hrms-app"]?.roles ?? [];
+          setRoles(userRoles);
+          console.log(userRoles, "userroles");
+
+          // Sync with PostgreSQL database
+          await syncWithDatabase();
 
           // If user goes to /login while authenticated, push them to dashboard
           if (pathname === "/login") {
@@ -63,10 +96,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           intervalRef.current = setInterval(() => {
             keycloak
               .updateToken(30)
-              .then((refreshed: boolean) => {
+              .then(async (refreshed: boolean) => {
                 if (refreshed && keycloak.token) {
                   setToken(keycloak.token);
-                  document.cookie = `kc_token=${keycloak.token}; path=/; SameSite=Lax; Max-Age=3600`;
+                  setUser(keycloak.tokenParsed || null);
+                  const updatedRoles =
+                    keycloak.tokenParsed?.resource_access?.["hrms-app"]
+                      ?.roles ?? [];
+                  setRoles(updatedRoles);
+
+                  // Re-sync on token refresh
+                  await syncWithDatabase();
                 }
               })
               .catch(() => {
@@ -79,7 +119,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           // Not authenticated
           setToken(null);
           setUser(null);
-          document.cookie = "kc_token=; path=/; Max-Age=0";
+          setDbUser(null);
+          setRoles([]);
 
           if (pathname !== "/login") {
             router.replace("/login");
@@ -90,7 +131,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setAuthenticated(false);
         setToken(null);
         setUser(null);
-
+        setDbUser(null);
+        setRoles([]);
         if (pathname !== "/login") {
           router.replace("/login");
         }
@@ -115,15 +157,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       redirectUri: `${window.location.origin}/login`,
     });
 
+  const hasRole = (role: string) => {
+    return dbUser?.system_role === role;
+  };
+
   // Global Loading State
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
         <div className="flex flex-col items-center gap-4">
-           <div className="w-12 h-12 bg-[#BCE061] rounded-xl flex items-center justify-center font-bold text-slate-800 text-xl animate-pulse">
+          <div className="w-12 h-12 bg-[#BCE061] rounded-xl flex items-center justify-center font-bold text-slate-800 text-xl animate-pulse">
             H
           </div>
-          <p className="text-gray-500 font-medium">Initializing secure workspace...</p>
+          <p className="text-gray-500 font-medium">
+            Initializing secure workspace...
+          </p>
         </div>
       </div>
     );
@@ -144,9 +192,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         authenticated,
         token,
         user,
+        dbUser,
+        roles,
         loading,
         login,
         logout,
+        hasRole,
       }}
     >
       {children}

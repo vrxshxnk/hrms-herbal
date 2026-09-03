@@ -2,7 +2,7 @@ import { apiError, ok } from "@/app/lib/api/response";
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { parseJson } from "@/app/lib/api/validation";
 import { createEmployeeSchema } from "@/app/validations/phase1_schema";
-
+import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 
 export async function GET(request: Request) {
   const client = await getPool().connect();
@@ -10,39 +10,50 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
 
+    const authuser = await getAuthenticatedUser(request);
+    const isHR = authuser.roles.includes("hr");
     const search = searchParams.get("search");
     const status = searchParams.get("status") || "active";
     const departmentId = searchParams.get("department_id");
-    const limit = Math.max(1, Math.min(100, Number(searchParams.get("limit")) || 20));
+    const limit = Math.max(
+      1,
+      Math.min(100, Number(searchParams.get("limit")) || 20),
+    );
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const offset = (page - 1) * limit;
 
     const queryParams: any[] = [];
     const whereConditions: string[] = [];
 
-    if (status) {
-      queryParams.push(status);
-      whereConditions.push(`e.status = $${queryParams.length}`);
-    }
+    if (!isHR) {
+      queryParams.push(authuser.sub);
+      whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
+    } else {
+      if (status) {
+        queryParams.push(status);
+        whereConditions.push(`e.status = $${queryParams.length}`);
+      }
 
- 
-    if (departmentId) {
-      queryParams.push(departmentId);
-      whereConditions.push(`e.department_id = $${queryParams.length}`);
-    }
+      if (departmentId) {
+        queryParams.push(departmentId);
+        whereConditions.push(`e.department_id = $${queryParams.length}`);
+      }
 
-    if (search) {
-      queryParams.push(`%${search}%`);
-      whereConditions.push(`(
+      if (search) {
+        queryParams.push(`%${search}%`);
+        whereConditions.push(`(
         e.employee_code ILIKE $${queryParams.length} OR
         e.first_name ILIKE $${queryParams.length} OR
         e.last_name ILIKE $${queryParams.length} OR
         e.work_email ILIKE $${queryParams.length}
       )`);
+      }
     }
 
-    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
-
+    const whereClause =
+      whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(" AND ")}`
+        : "";
 
     const listQuery = `
       SELECT 
@@ -98,23 +109,28 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
-
   } catch (error) {
     console.error("Error fetching employees list:", error);
-    return apiError("INTERNAL_ERROR","Failed to fetch employee list", 500);
+    return apiError("INTERNAL_ERROR", "Failed to fetch employee list", 500);
   } finally {
     client.release();
   }
 }
 
-
 export async function POST(request: Request) {
-  const parsed = await parseJson(request, createEmployeeSchema);
-  if (parsed.error) return parsed.error;
-
-  const data = parsed.data;
-
   try {
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser.roles.includes("hr")) {
+      return apiError(
+        "FORBIDDEN",
+        "You do not have permission to create employee records",
+        403,
+      );
+    }
+    const parsed = await parseJson(request, createEmployeeSchema);
+    if (parsed.error) return parsed.error;
+
+    const data = parsed.data;
     const createdEmployee = await withTranscations(async (client) => {
       const insertEmployeeQuery = `
         INSERT INTO employees (
@@ -245,10 +261,10 @@ export async function POST(request: Request) {
     });
 
     return ok(
-         createdEmployee, 
-         {success: true, message:"successfully created the employee"},  
-         201
-        );
+      createdEmployee,
+      { success: true, message: "successfully created the employee" },
+      201,
+    );
   } catch (error: any) {
     console.error("Error creating employee:", error);
     return apiError("INTERNAL_ERROR", "Failed to create employee", 500);

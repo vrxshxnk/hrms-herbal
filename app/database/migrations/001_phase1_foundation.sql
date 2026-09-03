@@ -64,6 +64,7 @@ create table if not exists employees (
     gender varchar(20) not null, 
     date_of_birth date not null,
     blood_group varchar(10),
+    keycloak_id VARCHAR(255) UNIQUE,
     marital_status varchar(20) not null,
     nationality varchar(50),
     preferred_language varchar(50) default 'english',
