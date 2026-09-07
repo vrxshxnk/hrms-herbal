@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
 
     const authuser = await getAuthenticatedUser(request);
+    console.log("auth user : ", authuser);
     const isHR = authuser.roles.includes("hr");
     const search = searchParams.get("search");
     const status = searchParams.get("status") || "active";

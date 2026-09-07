@@ -5,36 +5,46 @@ import { Plus } from "lucide-react";
 import { DonutChart } from "../components/DonutChart";
 import EmployeeLeaveTable from "../modals/EmployeeLeaveTable";
 import AddLeaveModal from "../modals/AddLeaveModal";
+import { useAuth } from "../context/AuthContext";
+
 export default function LeavePage() {
   const [leaveData, setLeaveData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
-  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false); 
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState<boolean>(false);
+  
+  const { token } = useAuth();
   const fetchLeaveData = useCallback(async () => {
+    if (!token) return; 
+
     setIsLoading(true);
     try {
-      const res = await fetch("/api/v1/leave");
+      const res = await fetch(`/api/v1/leave`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
       const json = await res.json();
-      console.log("json",json);
-      if (json.data?.success || json.data.data) {
-        setLeaveData(json.data?.data);
+      if (json.data?.success || json.data?.data) {
+        setLeaveData(json.data?.data || []);
       }
     } catch (err) {
       console.error("Failed to fetch leaves:", err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     fetchLeaveData();
   }, [fetchLeaveData]);
 
-  
   const totalRequests = leaveData.length;
-  const pendingRequests = leaveData.filter((item) => item.status === "Pending").length;
-  const approvedRequests = leaveData.filter((item) => item.status === "Approved").length;
-  const rejectedRequests = leaveData.filter((item) => item.status === "Rejected").length;
+  const pendingRequests = leaveData.filter((item) => item.status === "Pending" || item.status === "pending").length;
+  const approvedRequests = leaveData.filter((item) => item.status === "Approved" || item.status === "approved").length;
+  const rejectedRequests = leaveData.filter((item) => item.status === "Rejected" || item.status === "rejected").length;
+
   const stats = [
     {
       title: "Total Requests",
@@ -70,10 +80,10 @@ export default function LeavePage() {
     },
   ];
 
+  const handleAddModal = () => {
+    setIsLeaveModalOpen(true);
+  };
 
-  const handleAddModal=()=>{
-    setIsLeaveModalOpen(true); 
-  }
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
@@ -81,13 +91,21 @@ export default function LeavePage() {
           <h2 className="text-2xl font-bold text-slate-900">Leaves</h2>
           <p className="text-sm text-gray-500">Verify leaves over here...</p>
         </div>
-        <button onClick={()=>handleAddModal()} className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors">
+        <button
+          onClick={handleAddModal}
+          className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Add Leave
         </button>
       </div>
 
-      <AddLeaveModal isOpen={isLeaveModalOpen} onClose={()=>setIsLeaveModalOpen(false)} onSuccess={fetchLeaveData} />
+      <AddLeaveModal
+        isOpen={isLeaveModalOpen}
+        onClose={() => setIsLeaveModalOpen(false)}
+        onSuccess={fetchLeaveData}
+      />
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((stat, index) => (
           <div

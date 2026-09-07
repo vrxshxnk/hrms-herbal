@@ -49,7 +49,7 @@ const EmployeePage = () => {
   );
 
   const { hasRole, roles, token } = useAuth();
-  console.log("Roles hain : ", hasRole, roles);
+  console.log("roles of employee : ", roles);
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {

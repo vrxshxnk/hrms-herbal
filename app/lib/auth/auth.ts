@@ -17,7 +17,8 @@ export async function getAuthenticatedUser(request: Request):Promise<Authenticat
     throw new Error("Missing bearer token");
   }
   const payload = await verifyKeycloakToken(token);
-  const roles = payload.resource_access?.["hrms-appp"]?.roles ?? [];
+  console.log("payload yeh h :", payload);
+  const roles = payload.resource_access?.["hrms-app"]?.roles ?? [];
   return {
      sub:payload.sub,
      email:payload.email,

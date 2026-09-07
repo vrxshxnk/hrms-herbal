@@ -2,12 +2,15 @@ import { parseJson } from "@/app/lib/api/validation";
 import { apiError, ok } from "@/app/lib/api/response";
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { createLeaveRequestSchema } from "@/app/validations/phase1_schema";
+import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 
 export async function GET(request: Request) {
   const client = await getPool().connect();
 
   try {
     const { searchParams } = new URL(request.url);
+    const authuser = await getAuthenticatedUser(request);
+    const isHR = authuser.roles.includes("hr");
 
     const search = searchParams.get("search");
     const status = searchParams.get("status");
@@ -21,19 +24,26 @@ export async function GET(request: Request) {
     const queryParams: any[] = [];
     const whereConditions: string[] = [];
 
-    if (status) {
-      queryParams.push(status);
-      whereConditions.push(`lr.status = $${queryParams.length}`);
-    }
+   
+    if (!isHR) {
+      
+      queryParams.push(authuser.sub);
+      whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
+    } else {
+      if (status) {
+        queryParams.push(status);
+        whereConditions.push(`lr.status = $${queryParams.length}`);
+      }
 
-    if (search) {
-      queryParams.push(`%${search}%`);
-      whereConditions.push(`(
-        e.first_name ILIKE $${queryParams.length} OR
-        e.last_name ILIKE $${queryParams.length} OR
-        e.display_name ILIKE $${queryParams.length} OR
-        lt.name ILIKE $${queryParams.length}
-      )`);
+      if (search) {
+        queryParams.push(`%${search}%`);
+        whereConditions.push(`(
+          e.first_name ILIKE $${queryParams.length} OR
+          e.last_name ILIKE $${queryParams.length} OR
+          e.display_name ILIKE $${queryParams.length} OR
+          lt.name ILIKE $${queryParams.length}
+        )`);
+      }
     }
 
     const whereClause =
@@ -47,7 +57,7 @@ export async function GET(request: Request) {
         e.id AS employee_id,
         COALESCE(e.display_name, CONCAT(e.first_name, ' ', e.last_name)) AS employee_name,
         e.profile_photo_url,
-        des.title AS department, -- Or d.name for Department Name
+        des.title AS department,
         lt.name AS leave_type,
         lr.total_days,
         lr.half_day_type,
@@ -97,12 +107,12 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error fetching leave requests list:", error);
     return apiError(
-      "INTERNAL_ERROR",
-      "Failed to fetch leave requests list",
-      500,
+      "UNAUTHORIZED",
+      error.message || "Failed to fetch leave requests list",
+      401,
     );
   } finally {
     client.release();
@@ -110,67 +120,83 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const parsed = await parseJson(request, createLeaveRequestSchema);
-  if (parsed.error) return parsed.error;
-  const data = parsed.data;
-  const {
-    employee_id,
-    leave_code,
-    start_date,
-    end_date,
-    total_days,
-    half_day_type,
-    status,
-    reason,
-  } = data;
-  const client = getPool().connect();
+  const client = await getPool().connect();
+
   try {
-    const newLeave = await withTranscations(async (client) => {
-      const insertquery = `INSERT INTO leave_requests (
-             employee_id,
-             leave_type_id,
-             start_date,
-             end_date,
-             total_days,
-             half_day_type,
-             status,
-             reason
-            ) 
-         VALUES (
-            $1, 
-            (SELECT id FROM leave_types WHERE code = $2), 
-            $3, 
-            $4, 
-            $5, 
-            $6, 
-            $7, 
-            $8
+    const authuser = await getAuthenticatedUser(request);
+    const isHR = authuser.roles.includes("hr");
+
+    const parsed = await parseJson(request, createLeaveRequestSchema);
+    if (parsed.error) return parsed.error;
+    const data = parsed.data;
+
+    let targetEmployeeId = data.employee_id;
+
+    if (!isHR) {
+      const empResult = await client.query(
+        `SELECT id FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+        [authuser.sub],
+      );
+
+      if (empResult.rows.length === 0) {
+        return apiError("NOT_FOUND", "Employee profile not found", 404);
+      }
+
+      targetEmployeeId = empResult.rows[0].id;
+    }
+
+    const newLeave = await withTranscations(async (txClient) => {
+      const insertquery = `
+        INSERT INTO leave_requests (
+          employee_id,
+          leave_type_id,
+          start_date,
+          end_date,
+          total_days,
+          half_day_type,
+          status,
+          reason
+        ) 
+        VALUES (
+          $1, 
+          (SELECT id FROM leave_types WHERE code = $2), 
+          $3, 
+          $4, 
+          $5, 
+          $6, 
+          $7, 
+          $8
         )
-       RETURNING *;`;
+        RETURNING *;
+      `;
+
       const values = [
-        employee_id,
-        leave_code,
-        start_date,
-        end_date,
-        total_days,
-        half_day_type,
-        status,
-        reason || null,
+        targetEmployeeId,
+        data.leave_code,
+        data.start_date,
+        data.end_date,
+        data.total_days,
+        data.half_day_type,
+        data.status || "pending",
+        data.reason || null,
       ];
 
-      const result = await client.query(insertquery, values);
+      const result = await txClient.query(insertquery, values);
       if (result.rowCount === 0) {
         throw new Error("Leave type code not found in database");
       }
 
       return result.rows[0];
     });
+
     return ok({
       message: "Leave request submitted successfully",
       data: newLeave,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error creating leave request:", error);
-    return apiError("INTERNAL_ERROR", "Failed to create leave request", 500);
+    return apiError("INTERNAL_ERROR", error.message || "Failed to create leave request", 500);
+  } finally {
+    client.release();
   }
 }
