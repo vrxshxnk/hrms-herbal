@@ -18,7 +18,7 @@ create table if not exists business_units (
 create table if not exists departments (
     id uuid primary key default gen_random_uuid(),
     business_unit_id uuid not null references business_units(id) on delete cascade,
-    parent_department_id uuid references departments(id) on delete set null, -- sub-department hierarchy
+    parent_department_id uuid references departments(id) on delete set null, 
     code varchar(50) unique not null,
     name varchar(150) not null,
     created_at timestamp with time zone default current_timestamp
@@ -27,6 +27,7 @@ create table if not exists departments (
 create table if not exists designations (
     id uuid primary key default gen_random_uuid(),
     code varchar(50) unique not null,
+    department_id uuid not null references departments(id) on delete cascade,
     title varchar(100) not null,
     grade_level varchar(50) not null, 
     created_at timestamp with time zone default current_timestamp
@@ -51,6 +52,9 @@ create table if not exists shifts (
     end_time time not null,
     created_at timestamp with time zone default current_timestamp
 );
+
+
+
 
 create table if not exists employees (
     id uuid primary key default gen_random_uuid(),
@@ -114,6 +118,29 @@ create table if not exists employees (
     -- business rules constraints
     constraint chk_no_self_manager check (reporting_manager_id != id),
     constraint chk_no_self_super_manager check (super_manager_id != id)
+);
+
+create table if not exists tasks (
+    id uuid primary key default gen_random_uuid(),
+    title varchar(255) not null,
+    description text,
+    assigned_to uuid not null references employees(id) on delete cascade,
+    assigned_by uuid not null references employees(id) on delete cascade,
+    priority varchar(20) not null default 'medium',
+    due_date timestamp with time zone,
+    created_at timestamp with time zone default current_timestamp,
+    updated_at timestamp with time zone default current_timestamp
+);
+
+create table if not exists notifications(
+    id uuid primary key default gen_random_uuid(),
+    recipient_id uuid not null references employees(id) on delete cascade,
+    title varchar(200) not null,
+    message text not null,
+    type varchar(50) default 'task_assigned',
+    is_read boolean default false,
+    reference_id uuid references tasks(id) on delete cascade,
+    created_at timestamp with time zone default current_timestamp
 );
 
 create table if not exists employee_identities (

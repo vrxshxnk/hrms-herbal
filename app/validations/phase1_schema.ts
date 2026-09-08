@@ -217,6 +217,14 @@ export const createEmployeeSchema = z.object({
 // -----------------------------------------------------------------------------
 // 4. ATTENDANCE RECORD SCHEMA
 // -----------------------------------------------------------------------------
+export const taskInputSchema = z.object({
+  title: z.string().min(1, "Title is required").max(255),
+  description: z.string().optional(),
+  assigned_to: z.string().uuid("Invalid assigned_to UUID"),
+  assigned_by: z.string().uuid("Invalid assigned_by UUID"),
+  priority: z.enum(["low", "medium", "high"]).default("medium"),
+  due_date: z.coerce.date().optional(),
+});
 
 export const createAttendanceRecordSchema = z.object({
   employee_id: z.string().uuid("Invalid Employee ID"),

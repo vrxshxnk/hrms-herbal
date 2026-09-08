@@ -3,16 +3,22 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { parseJson } from "@/app/lib/api/validation";
 import { createEmployeeSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
+import {
+  createKeycloakUser,
+  deleteKeycloakUser,
+} from "../auth/keycloak/keycloak-admin";
 
 export async function GET(request: Request) {
   const client = await getPool().connect();
 
   try {
     const { searchParams } = new URL(request.url);
-
     const authuser = await getAuthenticatedUser(request);
-    console.log("auth user : ", authuser);
-    const isHR = authuser.roles.includes("hr");
+    const isHR = authuser.roles.some((r) =>
+      ["hr", "hradmin", "hr_admin"].includes(r.toLowerCase()),
+    );
+    console.log("authuser.roles:", authuser.roles);
+    console.log("isHR:", isHR);
     const search = searchParams.get("search");
     const status = searchParams.get("status") || "active";
     const departmentId = searchParams.get("department_id");
@@ -25,29 +31,31 @@ export async function GET(request: Request) {
 
     const queryParams: any[] = [];
     const whereConditions: string[] = [];
+    let paramIndex = 1;
 
     if (!isHR) {
       queryParams.push(authuser.sub);
-      whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
+      whereConditions.push(`e.keycloak_id = $${paramIndex++}`);
     } else {
       if (status) {
         queryParams.push(status);
-        whereConditions.push(`e.status = $${queryParams.length}`);
+        whereConditions.push(`e.status = $${paramIndex++}`);
       }
 
       if (departmentId) {
         queryParams.push(departmentId);
-        whereConditions.push(`e.department_id = $${queryParams.length}`);
+        whereConditions.push(`e.department_id = $${paramIndex++}`);
       }
 
       if (search) {
         queryParams.push(`%${search}%`);
         whereConditions.push(`(
-        e.employee_code ILIKE $${queryParams.length} OR
-        e.first_name ILIKE $${queryParams.length} OR
-        e.last_name ILIKE $${queryParams.length} OR
-        e.work_email ILIKE $${queryParams.length}
-      )`);
+          e.employee_code ILIKE $${paramIndex} OR
+          e.first_name ILIKE $${paramIndex} OR
+          e.last_name ILIKE $${paramIndex} OR
+          e.work_email ILIKE $${paramIndex}
+        )`);
+        paramIndex++;
       }
     }
 
@@ -89,7 +97,7 @@ export async function GET(request: Request) {
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
       ${whereClause}
       ORDER BY e.created_at DESC
-      LIMIT $${queryParams.length + 1} OFFSET $${queryParams.length + 2}
+      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
     `;
 
     const countQuery = `SELECT COUNT(*) FROM employees e ${whereClause}`;
@@ -119,22 +127,49 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  let createdKeycloakId: string | null = null;
+
   try {
     const authUser = await getAuthenticatedUser(request);
-    if (!authUser.roles.includes("hr")) {
+    const isHR = authUser.roles.some((r) =>
+      ["hr", "hradmin", "hr_admin"].includes(r.toLowerCase()),
+    );
+
+    if (!isHR) {
       return apiError(
         "FORBIDDEN",
         "You do not have permission to create employee records",
         403,
       );
     }
+
     const parsed = await parseJson(request, createEmployeeSchema);
     if (parsed.error) return parsed.error;
 
     const data = parsed.data;
+    try {
+      createdKeycloakId = await createKeycloakUser({
+        username: data.work_email,
+        email: data.work_email,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        roleName: "employee",
+      });
+    } catch (kcError: any) {
+      if (kcError.message?.startsWith("USER_EXISTS")) {
+        return apiError(
+          "CONFLICT",
+          "An account with this email already exists in Keycloak",
+          409,
+        );
+      }
+      throw kcError;
+    }
+
     const createdEmployee = await withTranscations(async (client) => {
       const insertEmployeeQuery = `
         INSERT INTO employees (
+          keycloak_id,
           employee_code,
           first_name,
           middle_name,
@@ -173,19 +208,16 @@ export async function POST(request: Request) {
           confirmation_date,
           exit_date
         ) VALUES (
-          $1, $2, $3, $4, $5,
-          $6, $7, $8, $9, $10,
-          $11, $12, $13, $14, $15,
-          $16, $17, $18, $19, $20,
-          $21, $22, $23, $24, $25,
-          $26, $27, $28, $29, $30,
-          $31, $32, $33, $34, $35,
-          $36, $37
+          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+          $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+          $21, $22, $23, $24, $25, $26, $27, $28, $29, $30,
+          $31, $32, $33, $34, $35, $36, $37, $38
         )
         RETURNING *;
       `;
 
       const employeeValues = [
+        createdKeycloakId,
         data.employee_code,
         data.first_name,
         data.middle_name || null,
@@ -267,6 +299,9 @@ export async function POST(request: Request) {
       201,
     );
   } catch (error: any) {
+    if (createdKeycloakId) {
+      await deleteKeycloakUser(createdKeycloakId);
+    }
     console.error("Error creating employee:", error);
     return apiError("INTERNAL_ERROR", "Failed to create employee", 500);
   }

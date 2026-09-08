@@ -87,12 +87,12 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
           {/* Sub menu */}
           {childComponents && (
             <div className="ml-4 py-2 space-y-1">
-              <a
-                href="#"
+              <Link
+                href="/"
                 className="block px-4 py-2 text-sm text-slate-700 hover:text-[#316AFF]"
               >
                 Dashboard
-              </a>
+              </Link>
 
               <Link
                 href="/employee"

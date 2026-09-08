@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Loader2 } from "lucide-react";
 import { Employee } from "../employee/page";
+import { useAuth } from "../context/AuthContext";
 
 type AddEmployeeModalProps = {
   isOpen: boolean;
@@ -24,6 +25,19 @@ const initialFormState = {
   designation_id: "",
 };
 
+type Department = {
+  id: string;
+  name: string;
+  code: string;
+};
+
+type Designation = {
+  id: string;
+  title: string;
+  code: string;
+  department_id: string;
+};
+
 export const AddEmployeeModal = ({
   isOpen,
   onClose,
@@ -34,8 +48,62 @@ export const AddEmployeeModal = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [formData, setFormData] = useState(initialFormState);
-
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [designations, setDesignation] = useState<Designation[]>([]);
+  const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [loadingDesignations, setLoadingDesignations] = useState(false);
+  const { token } = useAuth();
   const isEditMode = Boolean(employeeToEdit);
+
+  useEffect(() => {
+    if (!isOpen || !token) return;
+    const fetchDepartments = async () => {
+      setLoadingDepartments(true);
+      try {
+        const res = await fetch("/api/v1/departments", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        console.log("Result hai ", result);
+        if (result.data.success && result.data.data) {
+          setDepartments(result.data.data);
+        }
+      } catch (error) {
+        console.log("Failed to load department", error);
+        setDepartments([]);
+      } finally {
+        setLoadingDepartments(false);
+      }
+    };
+    fetchDepartments();
+  }, [isOpen, token]);
+
+  useEffect(() => {
+    if (!isOpen || !token || !formData.department_id) {
+      setDesignation([]);
+      return;
+    }
+    const fetchDesignation = async () => {
+      setLoadingDesignations(true);
+      try {
+        const res = await fetch(
+          `/api/v1/designation?department_id=${formData.department_id}`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const result = await res.json();
+        if (result.data.data && result.data.success) {
+          setDesignation(result.data.data);
+        }
+        console.log("result", result);
+      } catch (error) {
+        console.log("Failed to load designations", error);
+        setDesignation([]);
+      } finally {
+        setLoadingDesignations(false);
+      }
+    };
+    fetchDesignation();
+  }, [isOpen, token, formData.department_id]);
 
   useEffect(() => {
     if (employeeToEdit) {
@@ -65,7 +133,7 @@ export const AddEmployeeModal = ({
   if (!isOpen) return null;
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -76,6 +144,11 @@ export const AddEmployeeModal = ({
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (!token) {
+      setErrorMsg("Authentication token missing. Please log in again.");
+      setLoading(false);
+      return;
+    }
     const nameParts = formData.fullName.trim().split(" ");
     const first_name = nameParts[0] || "";
     const last_name =
@@ -109,7 +182,10 @@ export const AddEmployeeModal = ({
       const method = isEditMode ? "PATCH" : "POST";
       const res = await fetch(url, {
         method,
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify(payload),
       });
 
@@ -117,7 +193,7 @@ export const AddEmployeeModal = ({
       if (res.ok && (result.meta?.success || result.success)) {
         setSuccessMsg(
           result.meta?.message ||
-            `Employee ${isEditMode ? "updated" : "created"} successfully`
+            `Employee ${isEditMode ? "updated" : "created"} successfully`,
         );
         await onSuccess();
         setTimeout(() => {
@@ -127,7 +203,7 @@ export const AddEmployeeModal = ({
       } else {
         setErrorMsg(
           result.message ||
-            `Failed to ${isEditMode ? "update" : "create"} employee`
+            `Failed to ${isEditMode ? "update" : "create"} employee`,
         );
       }
     } catch (err) {
@@ -281,6 +357,58 @@ export const AddEmployeeModal = ({
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Department
+            </label>
+            <select
+              name="department_id"
+              value={formData.department_id}
+              onChange={handleChange}
+              disabled={loadingDepartments}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50"
+            >
+              <option value="">
+                {loadingDepartments
+                  ? "Loading departments..."
+                  : "Select Department"}
+              </option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Designation
+            </label>
+            <select
+              name="designation_id"
+              value={formData.designation_id}
+              onChange={handleChange}
+              disabled={!formData.department_id || loadingDesignations}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {!formData.department_id
+                  ? "Select Department First"
+                  : loadingDesignations
+                    ? "Loading designations..."
+                    : designations.length === 0
+                      ? "No designations found"
+                      : "Select Designation"}
+              </option>
+              {designations.map((desg) => (
+                <option key={desg.id} value={desg.id}>
+                  {desg.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Employment Status
             </label>
             <select
@@ -308,8 +436,8 @@ export const AddEmployeeModal = ({
                   ? "Updating..."
                   : "Saving..."
                 : isEditMode
-                ? "Update Employee"
-                : "Save Employee"}
+                  ? "Update Employee"
+                  : "Save Employee"}
             </button>
           </div>
         </form>
