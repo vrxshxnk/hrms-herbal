@@ -142,6 +142,13 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
               >
                 Analytics
               </a>
+              
+              <Link
+                href="/org-charts"
+                className="block px-4 py-2 text-sm text-[#316AFF]"
+              >
+                Organization chart
+              </Link>
             </div>
           )}
 
