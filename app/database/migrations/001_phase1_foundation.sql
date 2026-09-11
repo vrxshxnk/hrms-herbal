@@ -177,6 +177,9 @@ create table if not exists attendance_records (
     working_hours decimal(4,2) default 0.00,
     location_id uuid references locations(id),
     shift_id uuid references shifts(id),
+    is_regularized BOOLEAN DEFAULT FALSE,
+    regularized_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    regularization_reason TEXT;
     source varchar(50) default 'biometric', -- biometric, web, mobile
     created_at timestamp with time zone default current_timestamp,
     constraint idx_emp_date unique(employee_id, attendance_date)
@@ -193,6 +196,18 @@ create table if not exists employee_audit_logs (
     created_at timestamp with time zone default current_timestamp
 );
 
+create table if not exists attendance_audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    attendance_record_id UUID NOT NULL REFERENCES attendance_records(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    field_changed VARCHAR(100) NOT NULL, -- e.g., 'check_in_time', 'check_out_time', 'status'
+    previous_value TEXT,
+    new_value TEXT,
+    changed_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    reason TEXT,
+    change_source VARCHAR(50) DEFAULT 'hrms_regularization',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
 
 
 create table if not exists leave_types (

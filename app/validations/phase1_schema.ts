@@ -246,6 +246,9 @@ export const createAttendanceRecordSchema = z.object({
   location_id: optionalUuid,
   shift_id: optionalUuid,
   source: z.enum(["biometric", "web", "mobile"]).default("biometric"),
+  is_regularized: z.boolean().optional().default(false),
+  regularized_by: optionalUuid,
+  regularization_reason: z.string().optional().nullable(),
 });
 
 // -----------------------------------------------------------------------------
