@@ -251,6 +251,36 @@ export const createAttendanceRecordSchema = z.object({
   regularization_reason: z.string().optional().nullable(),
 });
 
+
+
+export const createAnnouncementSchema = z.object({
+  title: z
+    .string({ message: "Title is required" })
+    .min(1, "Title cannot be empty")
+    .max(255, "Title cannot exceed 255 characters"),
+  
+  content: z
+    .string({ message: "Content is required" })
+    .min(1, "Content cannot be empty"),
+
+  priority: z
+    .enum(["low", "medium", "high", "critical"])
+    .default("medium"),
+
+  // Optional audience scope targeting (NULL / undefined implies global)
+  target_legal_entity_id: z.string().uuid("Invalid Legal Entity ID").nullable().optional(),
+  target_department_id: z.string().uuid("Invalid Department ID").nullable().optional(),
+  target_location_id: z.string().uuid("Invalid Location ID").nullable().optional(),
+
+  expires_at: z
+    .string()
+    .datetime({ message: "expires_at must be a valid ISO timestamp string" })
+    .nullable()
+    .optional(),
+
+  is_published: z.boolean().default(true),
+});
+
 // -----------------------------------------------------------------------------
 // 5. EMPLOYEE AUDIT LOG SCHEMA
 // -----------------------------------------------------------------------------
@@ -303,3 +333,4 @@ export type CreateEmployeeAuditLogInput = z.infer<
   typeof createEmployeeAuditLogSchema
 >;
 export type CreateLeaveRequestInput = z.infer<typeof createLeaveRequestSchema>;
+export type CreateAnnouncementInput = z.infer<typeof createAnnouncementSchema>;

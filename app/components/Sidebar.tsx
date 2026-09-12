@@ -136,12 +136,12 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
                 Task Management
               </a>
 
-              <a
-                href="#"
+              <Link
+                href="/announcements"
                 className="block px-4 py-2 text-sm text-slate-700 hover:text-[#316AFF]"
               >
-                Analytics
-              </a>
+                 Announcements
+              </Link>
               
               <Link
                 href="/org-charts"

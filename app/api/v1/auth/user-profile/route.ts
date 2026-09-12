@@ -1,4 +1,3 @@
-
 import { getPool } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 
@@ -8,6 +7,9 @@ export interface DBUserProfile {
   keycloak_id: string;
   work_email: string;
   system_role: string; 
+  department_id: string | null;
+  location_id?: string | null;
+  legal_entity_id?: string | null;
 }
 
 export async function getDBUserProfile(request: Request): Promise<DBUserProfile | null> {
@@ -18,14 +20,16 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
   try {
     const result = await client.query(
       `SELECT 
-             id, 
-             employee_code, 
-             keycloak_id, 
-             work_email, 
-             system_role 
+         id, 
+         employee_code, 
+         keycloak_id, 
+         work_email, 
+         system_role,
+         department_id,
+         location_id,
+         legal_entity_id
        FROM employees 
-       WHERE keycloak_id = $1 AND status = 'active'
-       `,
+       WHERE keycloak_id = $1 AND status = 'active'`,
       [authUser.sub]
     );
 

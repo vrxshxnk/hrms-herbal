@@ -53,9 +53,6 @@ create table if not exists shifts (
     created_at timestamp with time zone default current_timestamp
 );
 
-
-
-
 create table if not exists employees (
     id uuid primary key default gen_random_uuid(),
     employee_code varchar(50) unique not null,
@@ -179,7 +176,7 @@ create table if not exists attendance_records (
     shift_id uuid references shifts(id),
     is_regularized BOOLEAN DEFAULT FALSE,
     regularized_by UUID REFERENCES employees(id) ON DELETE SET NULL,
-    regularization_reason TEXT;
+    regularization_reason TEXT,
     source varchar(50) default 'biometric', -- biometric, web, mobile
     created_at timestamp with time zone default current_timestamp,
     constraint idx_emp_date unique(employee_id, attendance_date)
@@ -209,7 +206,6 @@ create table if not exists attendance_audit_logs (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
-
 create table if not exists leave_types (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     code VARCHAR(50) UNIQUE NOT NULL, 
@@ -227,7 +223,7 @@ create table if not exists  leave_requests (
     end_date DATE NOT NULL, 
     total_days DECIMAL(4, 1) NOT NULL, 
     half_day_type VARCHAR(20) DEFAULT 'full_day', 
-    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', )),
+    status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected' )),
     reason TEXT,
     rejection_reason TEXT,
     approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
@@ -238,5 +234,69 @@ create table if not exists  leave_requests (
 );
 
 
+create table if not exists sop_documents(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    document_number VARCHAR(100) UNIQUE,
+    category VARCHAR(100) NOT NULL, -- e.g., 'HR Policy', 'Safety', 'IT Guidelines'
+    version VARCHAR(20) DEFAULT '1.0',
+    file_url TEXT NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+create table if not exists announcements(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    content TEXT NOT NULL,
+    priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'critical')),
+    publisher_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    
+    -- Audience Scope Filtering (NULL means global / system-wide)
+    target_legal_entity_id UUID REFERENCES legal_entities(id) ON DELETE SET NULL,
+    target_department_id UUID REFERENCES departments(id) ON DELETE SET NULL,
+    target_location_id UUID REFERENCES locations(id) ON DELETE SET NULL,
+    
+    published_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    is_published BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+create table if not exists company_events(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    event_type VARCHAR(50) NOT NULL, -- e.g., 'holiday', 'townhall', 'training', 'team_building'
+    start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_all_day BOOLEAN DEFAULT FALSE,
+    location_id UUID REFERENCES locations(id) ON DELETE SET NULL, -- Physical location or NULL for remote/all
+    meeting_link TEXT,
+    created_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_event_dates CHECK (end_time >= start_time)
+);
+
+create table if not exists company_events_attendee(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    event_id UUID NOT NULL REFERENCES company_events(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    status VARCHAR(20) DEFAULT 'invited' CHECK (status IN ('invited', 'accepted', 'declined', 'tentative')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT idx_event_employee UNIQUE(event_id, employee_id)
+);
+
+
 CREATE INDEX IF NOT EXISTS idx_leave_requests_emp_id ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
+CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, published_at);
+CREATE INDEX IF NOT EXISTS idx_events_start_end ON company_events(start_time, end_time);
+CREATE INDEX IF NOT EXISTS idx_sop_category ON sop_documents(category);
