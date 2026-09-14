@@ -234,6 +234,17 @@ create table if not exists  leave_requests (
 );
 
 
+create table if not exists faq_queries(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100),
+    email VARCHAR(255) NOT NULL,
+    subject VARCHAR(255) NOT NULL,
+    question TEXT NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'in_review', 'resolved', 'closed')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 create table if not exists sop_documents(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
@@ -300,3 +311,5 @@ CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, published_at);
 CREATE INDEX IF NOT EXISTS idx_events_start_end ON company_events(start_time, end_time);
 CREATE INDEX IF NOT EXISTS idx_sop_category ON sop_documents(category);
+CREATE INDEX IF NOT EXISTS idx_faq_queries_status ON faq_queries(status);
+CREATE INDEX IF NOT EXISTS idx_faq_queries_created_at ON faq_queries(created_at DESC);

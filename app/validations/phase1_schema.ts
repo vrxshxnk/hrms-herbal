@@ -251,7 +251,22 @@ export const createAttendanceRecordSchema = z.object({
   regularization_reason: z.string().optional().nullable(),
 });
 
-
+export const faqQueryInputSchema = z.object({
+  name: z.string().max(100, "Name must be under 100 characters").optional(),
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Invalid email address")
+    .max(255, "Email must be under 255 characters"),
+  subject: z
+    .string()
+    .min(1, "Subject is required")
+    .max(255, "Subject must be under 255 characters"),
+  question: z
+    .string()
+    .min(1, "Question is required")
+    .min(10, "Question should be at least 10 characters long"),
+});
 
 export const createAnnouncementSchema = z.object({
   title: z

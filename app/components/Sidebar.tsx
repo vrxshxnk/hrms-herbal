@@ -149,6 +149,13 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
               >
                 Organization chart
               </Link>
+
+              <Link
+                href="/faq"
+                className="block px-4 py-2 text-sm text-[#316AFF]"
+              >
+                FAQ's 
+              </Link>
             </div>
           )}
 
