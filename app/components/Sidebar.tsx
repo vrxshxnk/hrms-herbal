@@ -166,13 +166,13 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
             </p>
           </div>
 
-          <a
-            href="#"
+          <Link
+            href="/chat"
             className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 rounded-lg"
           >
             <MessageCircle className="w-4 h-4" />
             Chat
-          </a>
+          </Link>
 
           <a
             href="#"

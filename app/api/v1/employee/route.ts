@@ -76,6 +76,7 @@ export async function GET(request: Request) {
         e.gender,
         e.work_email,
         e.mobile_number,
+        e.keycloak_id,
         e.status,
         e.employment_type,
         e.joining_date,
