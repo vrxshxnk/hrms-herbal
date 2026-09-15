@@ -14,7 +14,8 @@ export default function EmployeeLeaveTable({
   onRefresh,
 }: EmployeeLeaveTableProps) {
 
- const {user} = useAuth();
+ const {user, roles} = useAuth();
+ const hasHrRole = roles.includes("hr");
  console.log("user", user); 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
@@ -53,6 +54,15 @@ export default function EmployeeLeaveTable({
     );
   }
 
+  const formatDate = (datestring: string)=>{
+      if(!datestring) return ("-");
+      return new Date(datestring).toLocaleDateString("en-GB",{
+        day:"numeric",
+        month: "short",
+        year: "numeric",
+        timeZone:"UTC",
+      });
+  }
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -87,7 +97,7 @@ export default function EmployeeLeaveTable({
               <th className="py-3 px-4">Start</th>
               <th className="py-3 px-4">End</th>
               <th className="py-3 px-4">Status</th>
-              <th className="py-3 px-4 text-center">Action</th>
+              {hasHrRole &&  <th className="py-3 px-4 text-center">Action</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-sm">
@@ -128,10 +138,10 @@ export default function EmployeeLeaveTable({
                     {row.duration_display}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {row.start_date}
+                    {formatDate(row.start_date)}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {row.end_date}
+                    {formatDate(row.end_date)}
                   </td>
                   <td className="py-3 px-4 whitespace-nowrap">
                     <span
@@ -146,7 +156,8 @@ export default function EmployeeLeaveTable({
                       {row.status}
                     </span>
                   </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-center">
+                   {hasHrRole && (
+                                      <td className="py-3 px-4 whitespace-nowrap text-center">
                     <div className="flex items-center justify-center gap-2">
                       {row.status !== "Approved" && (
                         <button
@@ -172,6 +183,7 @@ export default function EmployeeLeaveTable({
                       )}
                     </div>
                   </td>
+                   )}
                 </tr>
               ))
             )}

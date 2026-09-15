@@ -108,12 +108,12 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
                 Attendance
               </Link>
 
-              <a
-                href="#"
+              <Link
+                href="/leave"
                 className="block px-4 py-2 text-sm text-slate-700 hover:text-[#316AFF]"
               >
                 Leave
-              </a>
+              </Link>
 
               <a
                 href="#"

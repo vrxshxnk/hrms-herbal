@@ -29,7 +29,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
+import { AddEmployeeModal } from '../modals/AddEmployeeModal';
 // --- Types ---
 export interface MonthlyAttendance {
   month: string;
@@ -57,27 +57,32 @@ export interface EmployeeAttendanceRecord {
 }
 
 interface AttendanceDashboardProps {
-  onAddEmployee?: () => void;
   onDownloadReport?: () => void;
   apiEndpoint?: string; 
 }
 
 export default function AttendanceDashboard({
-  onAddEmployee,
   onDownloadReport,
   apiEndpoint = '/api/v1/attendance',
 }: AttendanceDashboardProps) {
   const [formattedDate, setFormattedDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('2026');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const m = new Date().getMonth() + 1;
     return String(m).padStart(2, '0');
   });
 
-  const {token} = useAuth();
+  const {token, roles} = useAuth();
+  const hasHrRole = roles.includes("hr");
+  console.log("Role hr :", hasHrRole);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
+
+  const handleOpenAddModal=()=>{
+     setIsModalOpen(true);
+  }
 
   // Fetching States
   const [employeesAttendanceList, setEmployeesAttendanceList] = useState<EmployeeAttendanceRecord[]>([]);
@@ -235,14 +240,27 @@ export default function AttendanceDashboard({
               Dashboard / <span className="text-slate-600">Attendance</span>
             </p>
           </div>
-          <button
-            onClick={onAddEmployee}
+          {hasHrRole && (
+             <button
+            onClick={handleOpenAddModal}
             className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-xl text-sm transition-colors shadow-xs cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Add Employee
           </button>
+          )}
         </div>
+
+        <AddEmployeeModal 
+           isOpen={isModalOpen}
+           onClose={()=>setIsModalOpen(false)}
+           onSuccess={()=>{
+              setIsModalOpen(false);
+              fetchAttendanceData();
+           } 
+           }
+           employeeToEdit={null}
+        />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

@@ -48,8 +48,8 @@ const EmployeePage = () => {
     null,
   );
 
-  const { hasRole, roles, token } = useAuth();
-  console.log("roles of employee : ", roles);
+  const { roles, token } = useAuth();
+  const hasHrRole= roles.includes("hr");
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
@@ -154,13 +154,15 @@ const EmployeePage = () => {
           </nav>
         </div>
 
-        <button
+        {hasHrRole && (
+           <button
           onClick={handleOpenAddModal}
           className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
           Add Employee
         </button>
+        )}
       </div>
 
       <AddEmployeeModal

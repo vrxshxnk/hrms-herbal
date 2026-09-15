@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 type AddLeaveModalProps = {
   isOpen: boolean;
@@ -35,6 +36,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const {token} = useAuth();
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate);
@@ -52,7 +54,12 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const res = await fetch("/api/v1/employee?status=active");
+        const res = await fetch(
+             `/api/v1/employee?status=active`, {headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        }
+        });
         const json = await res.json();
         if (json.data?.data) {
           setEmployees(json.data.data);
@@ -107,6 +114,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

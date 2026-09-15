@@ -24,7 +24,6 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
          employee_code, 
          keycloak_id, 
          work_email, 
-         system_role,
          department_id,
          location_id,
          legal_entity_id
@@ -34,7 +33,20 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
     );
 
     if (result.rows.length === 0) return null;
-    return result.rows[0] as DBUserProfile;
+    const roles: string[] = authUser.roles;
+    let system_role = "employee";
+    if (roles.includes("admin")) {
+      system_role = "admin";
+    } else if (roles.includes("manager")) {
+      system_role = "manager";
+    } else if(roles.includes("hr")){
+      system_role = "hr";
+    }
+
+    return {
+      ...result.rows[0],
+      system_role,
+    } as DBUserProfile;
   } finally {
     client.release();
   }

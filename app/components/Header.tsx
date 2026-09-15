@@ -34,6 +34,9 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const openUsersProfile = () => {
     setIsUserOpen((prev) => !prev);
   };
+   const roles = user?.realm_access?.roles ?? [];
+   const userType = roles.includes("manager")?"Manager":roles.includes("hr")?"HR":"Employee";
+
   return (
     <header className="w-full bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between gap-4">
       {/* Left side: Mobile Menu Toggle & Search Bar */}
@@ -97,7 +100,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
               {capitalizeWords(user?.name)}
             </p>
             <p className="text-[10px] text-slate-400 font-medium mt-0.5">
-              Manager
+              {userType}
             </p>
           </div>
 
