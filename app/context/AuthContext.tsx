@@ -77,10 +77,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         if (auth && keycloak.token) {
           setToken(keycloak.token);
           setUser(keycloak.tokenParsed || null);
-          const userRoles =
+
+          const realmRoles = keycloak.tokenParsed?.realm_access?.roles ?? [];
+          const clientRoles =
             keycloak.tokenParsed?.resource_access?.["hrms-app"]?.roles ?? [];
-          setRoles(userRoles);
-          console.log(userRoles, "userroles");
+          const combinedRoles = Array.from(
+            new Set([...realmRoles, ...clientRoles]),
+          );
+          setRoles(combinedRoles);
+          console.log(combinedRoles, "userroles");
 
           // Sync with PostgreSQL database
           await syncWithDatabase();
@@ -158,7 +163,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     });
 
   const hasRole = (role: string) => {
-    return dbUser?.system_role === role;
+    if (roles.includes(role)) return true;
+    if (dbUser?.system_role === role) return true;
+    return false;
   };
 
   // Global Loading State

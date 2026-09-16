@@ -215,6 +215,19 @@ create table if not exists leave_types (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT current_timestamp
 );
 
+create table if not exists employee_leave_balances (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    leave_type_id UUID NOT NULL REFERENCES leave_types(id) ON DELETE CASCADE,
+    year INT NOT NULL DEFAULT EXTRACT(YEAR FROM CURRENT_DATE),
+    total_leaves_avail DECIMAL(4, 1) DEFAULT 15.0,
+    monthly_limit DECIMAL(4, 1) DEFAULT 1.5,
+    used_leaves DECIMAL(4, 1) DEFAULT 0.0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT unique_emp_leave_year UNIQUE (employee_id, leave_type_id, year)
+);
+
 create table if not exists  leave_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,

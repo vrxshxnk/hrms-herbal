@@ -1,6 +1,5 @@
 "use client";
-
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 interface EmployeeLeaveTableProps {
   data: any[];
@@ -13,11 +12,47 @@ export default function EmployeeLeaveTable({
   isLoading,
   onRefresh,
 }: EmployeeLeaveTableProps) {
-
- const {user, roles} = useAuth();
- const hasHrRole = roles.includes("hr");
- console.log("user", user); 
+  const { user, roles, hasRole, token } = useAuth();
+  const hasHrRole =
+    hasRole("hr") ||
+    hasRole("manager") ||
+    roles.includes("hr") ||
+    roles.includes("manager") ||
+    ["hr", "manager"].includes(user?.system_role?.toLowerCase());
+  console.log("user", user);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+  // Balance state map: key is employee_id, value is list of balances
+  const [balanceMap, setBalanceMap] = useState<Record<string, any[]>>({});
+
+  useEffect(() => {
+    async function fetchBalances() {
+      if (!token) return;
+      try {
+        const res = await fetch("/api/v1/leave/balance", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        
+        // Response format from Strategy GET: { data: [ { employee_id, balances: [...] }, ... ] }
+        const rawData = result?.data?.data || result?.data || [];
+        const map: Record<string, any[]> = {};
+
+        if (Array.isArray(rawData)) {
+          rawData.forEach((emp: any) => {
+            if (emp.employee_id) {
+              map[emp.employee_id] = emp.balances || [];
+            }
+          });
+        }
+        setBalanceMap(map);
+      } catch (error) {
+        console.error("Failed to fetch leave balances:", error);
+      }
+    }
+
+    fetchBalances();
+  }, [token, data]);
 
   const handleStatusUpdate = async (
     id: string,
@@ -27,12 +62,16 @@ export default function EmployeeLeaveTable({
       setUpdatingId(id);
       const res = await fetch(`/api/v1/leave/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           id,
-          status: newStatus,
-          approved_by:user?.sub,
-          rejection_reason: newStatus === "Rejected" ? "Rejected by HR" : null,
+          action: newStatus,
+          approved_by: user?.sub,
+          rejection_reason:
+            newStatus === "Rejected" ? "Rejected by HR" : null,
         }),
       });
 
@@ -54,15 +93,36 @@ export default function EmployeeLeaveTable({
     );
   }
 
-  const formatDate = (datestring: string)=>{
-      if(!datestring) return ("-");
-      return new Date(datestring).toLocaleDateString("en-GB",{
-        day:"numeric",
-        month: "short",
-        year: "numeric",
-        timeZone:"UTC",
-      });
-  }
+  const formatDate = (datestring: string) => {
+    if (!datestring) return "-";
+    return new Date(datestring).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  };
+
+  const getBalanceDisplay = (row: any) => {
+    // Lookup employee balances using employee_id from row
+    const empBalances = balanceMap[row.employee_id];
+    if (!empBalances || empBalances.length === 0) return "-";
+
+    // Match leave balance by type id or name
+    const matched = empBalances.find(
+      (b: any) =>
+        b.leave_type_id === row.leave_type_id ||
+        b.leave_type_name?.toLowerCase() === row.leave_type?.toLowerCase()
+    );
+
+    if (!matched) {
+      const defaultBal = empBalances[0];
+      return `${defaultBal.remaining_leaves ?? "-"} / ${defaultBal.total_leaves_avail ?? "-"}`;
+    }
+
+    return `${matched.remaining_leaves} / ${matched.total_leaves_avail}`;
+  };
+
   return (
     <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -93,17 +153,20 @@ export default function EmployeeLeaveTable({
               <th className="py-3 px-4">Name</th>
               <th className="py-3 px-4">Leave Type</th>
               <th className="py-3 px-4">Department</th>
+              <th className="py-3 px-4">Balance</th>
               <th className="py-3 px-4">Days</th>
               <th className="py-3 px-4">Start</th>
               <th className="py-3 px-4">End</th>
               <th className="py-3 px-4">Status</th>
-              {hasHrRole &&  <th className="py-3 px-4 text-center">Action</th>}
+              {hasHrRole && (
+                <th className="py-3 px-4 text-center">Action</th>
+              )}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-sm">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-6 text-gray-500">
+                <td colSpan={9} className="text-center py-6 text-gray-500">
                   No leave requests found.
                 </td>
               </tr>
@@ -134,6 +197,17 @@ export default function EmployeeLeaveTable({
                   <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                     {row.department || "N/A"}
                   </td>
+                 <td className="py-3 px-4 whitespace-nowrap">
+  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
+    <span className="text-blue-600 font-bold">
+      {getBalanceDisplay(row).split('/')[0]?.trim()}
+    </span>
+    <span className="text-slate-400 font-normal">/</span>
+    <span className="text-slate-500">
+      {getBalanceDisplay(row).split('/')[1]?.trim()} Days
+    </span>
+  </div>
+</td>
                   <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                     {row.duration_display}
                   </td>
@@ -156,34 +230,34 @@ export default function EmployeeLeaveTable({
                       {row.status}
                     </span>
                   </td>
-                   {hasHrRole && (
-                                      <td className="py-3 px-4 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {row.status !== "Approved" && (
-                        <button
-                          disabled={updatingId === row.request_id}
-                          onClick={() =>
-                            handleStatusUpdate(row.request_id, "Approved")
-                          }
-                          className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-50"
-                        >
-                          Approve
-                        </button>
-                      )}
-                      {row.status !== "Rejected" && (
-                        <button
-                          disabled={updatingId === row.request_id}
-                          onClick={() =>
-                            handleStatusUpdate(row.request_id, "Rejected")
-                          }
-                          className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
-                        >
-                          Reject
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                   )}
+                  {hasHrRole && (
+                    <td className="py-3 px-4 whitespace-nowrap text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        {row.status !== "Approved" && (
+                          <button
+                            disabled={updatingId === row.request_id}
+                            onClick={() =>
+                              handleStatusUpdate(row.request_id, "Approved")
+                            }
+                            className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {row.status !== "Rejected" && (
+                          <button
+                            disabled={updatingId === row.request_id}
+                            onClick={() =>
+                              handleStatusUpdate(row.request_id, "Rejected")
+                            }
+                            className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
+                          >
+                            Reject
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))
             )}

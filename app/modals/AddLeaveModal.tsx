@@ -16,7 +16,6 @@ interface EmployeeOption {
   employee_code: string;
 }
 
-
 const LEAVE_TYPES = [
   { code: "CASUAL", name: "Casual Leave" },
   { code: "SICK", name: "Sick Leave" },
@@ -36,29 +35,34 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const {token} = useAuth();
+  const { token, roles, hasRole } = useAuth();
+  console.log("role of employe leave k liye :", hasRole);
+
+  console.log("Is Manager?:", hasRole("manager"));
+  console.log("Is HR?:", hasRole("hr"));
+  // const checkIfHrOrmanagerRole= roles.includes("hr" | "manager");
+  const isHrOrManager = hasRole("hr") || hasRole("manager");
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (end < start) return 0;
     const diffTime = Math.abs(end.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; 
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
   }, [startDate, endDate]);
 
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage(null);
 
-
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const res = await fetch(
-             `/api/v1/employee?status=active`, {headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        }
+        const res = await fetch(`/api/v1/employee?status=active`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
         const json = await res.json();
         if (json.data?.data) {
@@ -114,13 +118,17 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-           Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });
       const result = await res.json();
       if (!res.ok) {
-        throw new Error(result.error?.message || result.message || "Failed to add leave request");
+        throw new Error(
+          result.error?.message ||
+            result.message ||
+            "Failed to add leave request",
+        );
       }
       resetForm();
       if (onSuccess) onSuccess();
@@ -136,10 +144,10 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-        
-
         <div className="flex items-center justify-between p-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-800">Add Leave Request</h2>
+          <h2 className="text-lg font-bold text-slate-800">
+            Add Leave Request
+          </h2>
           <button
             type="button"
             onClick={handleModalClose}
@@ -149,19 +157,16 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
           </button>
         </div>
 
- 
         {errorMessage && (
           <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 text-red-600 text-xs rounded-xl">
             {errorMessage}
           </div>
         )}
 
-
         <form
           onSubmit={handleSubmit}
           className="p-5 space-y-4 max-h-[80vh] overflow-y-auto"
         >
-   
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Employee *
@@ -175,7 +180,9 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981] disabled:bg-slate-50"
             >
               <option value="" disabled>
-                {loadingEmployees ? "Loading employees..." : "Select an employee"}
+                {loadingEmployees
+                  ? "Loading employees..."
+                  : "Select an employee"}
               </option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>
@@ -184,7 +191,6 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               ))}
             </select>
           </div>
-
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
@@ -208,7 +214,6 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               ))}
             </select>
           </div>
-
 
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -241,7 +246,6 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             </div>
           </div>
 
-       
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Total Days
@@ -255,7 +259,6 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             />
           </div>
 
-     
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Reason
@@ -271,26 +274,26 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             />
           </div>
 
+          {isHrOrManager && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+                Status *
+              </label>
+              <select
+                name="status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+                required
+                disabled={submitting}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
+              >
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-              Status *
-            </label>
-            <select
-              name="status"
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              required
-              disabled={submitting}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
-            >
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-          </div>
-
-       
           <div className="pt-2 flex justify-end gap-2">
             <button
               type="button"

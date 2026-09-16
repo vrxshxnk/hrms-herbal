@@ -11,45 +11,51 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const authuser = await getAuthenticatedUser(request);
     const isHR = authuser.roles.includes("hr");
+    const isManager = authuser.roles.includes("manager");
 
     const search = searchParams.get("search");
     const status = searchParams.get("status");
-    const limit = Math.max(
-      1,
-      Math.min(100, Number(searchParams.get("limit")) || 20),
-    );
+    const limit = Math.max(1, Math.min(100, Number(searchParams.get("limit")) || 20));
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const offset = (page - 1) * limit;
 
     const queryParams: any[] = [];
     const whereConditions: string[] = [];
 
-   
-    if (!isHR) {
-      
-      queryParams.push(authuser.sub);
-      whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
-    } else {
+    if (isHR) {
+      // HR view: Filter by status or search across all employees
       if (status) {
         queryParams.push(status);
         whereConditions.push(`lr.status = $${queryParams.length}`);
       }
-
-      if (search) {
-        queryParams.push(`%${search}%`);
-        whereConditions.push(`(
-          e.first_name ILIKE $${queryParams.length} OR
-          e.last_name ILIKE $${queryParams.length} OR
-          e.display_name ILIKE $${queryParams.length} OR
-          lt.name ILIKE $${queryParams.length}
-        )`);
+    } else if (isManager) {
+      // Manager view: Fetch requests for direct reports
+      queryParams.push(authuser.sub);
+      whereConditions.push(
+        `e.reporting_manager_id = (SELECT id FROM employees WHERE keycloak_id = $${queryParams.length})`
+      );
+      if (status) {
+        queryParams.push(status);
+        whereConditions.push(`lr.status = $${queryParams.length}`);
       }
+    } else {
+      // Regular Employee view: Fetch self requests only
+      queryParams.push(authuser.sub);
+      whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
+    }
+
+    if (search && isHR) {
+      queryParams.push(`%${search}%`);
+      whereConditions.push(`(
+        e.first_name ILIKE $${queryParams.length} OR
+        e.last_name ILIKE $${queryParams.length} OR
+        e.display_name ILIKE $${queryParams.length} OR
+        lt.name ILIKE $${queryParams.length}
+      )`);
     }
 
     const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(" AND ")}`
-        : "";
+      whereConditions.length > 0 ? `WHERE ${whereConditions.join(" AND ")}` : "";
 
     const listQuery = `
       SELECT 
@@ -109,11 +115,7 @@ export async function GET(request: Request) {
     });
   } catch (error: any) {
     console.error("Error fetching leave requests list:", error);
-    return apiError(
-      "UNAUTHORIZED",
-      error.message || "Failed to fetch leave requests list",
-      401,
-    );
+    return apiError("UNAUTHORIZED", error.message || "Failed to fetch leave requests list", 401);
   } finally {
     client.release();
   }
