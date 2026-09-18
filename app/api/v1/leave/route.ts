@@ -23,13 +23,11 @@ export async function GET(request: Request) {
     const whereConditions: string[] = [];
 
     if (isHR) {
-      // HR view: Filter by status or search across all employees
       if (status) {
         queryParams.push(status);
         whereConditions.push(`lr.status = $${queryParams.length}`);
       }
     } else if (isManager) {
-      // Manager view: Fetch requests for direct reports
       queryParams.push(authuser.sub);
       whereConditions.push(
         `e.reporting_manager_id = (SELECT id FROM employees WHERE keycloak_id = $${queryParams.length})`
@@ -39,7 +37,6 @@ export async function GET(request: Request) {
         whereConditions.push(`lr.status = $${queryParams.length}`);
       }
     } else {
-      // Regular Employee view: Fetch self requests only
       queryParams.push(authuser.sub);
       whereConditions.push(`e.keycloak_id = $${queryParams.length}`);
     }
@@ -61,10 +58,12 @@ export async function GET(request: Request) {
       SELECT 
         lr.id AS request_id,
         e.id AS employee_id,
+        e.reporting_manager_id,
         COALESCE(e.display_name, CONCAT(e.first_name, ' ', e.last_name)) AS employee_name,
         e.profile_photo_url,
         des.title AS department,
         lt.name AS leave_type,
+        lt.id AS leave_type_id,
         lr.total_days,
         lr.half_day_type,
         CASE 
@@ -75,6 +74,7 @@ export async function GET(request: Request) {
         lr.start_date,
         lr.end_date,
         lr.status,
+        lr.manager_approval_status,
         lr.reason,
         lr.rejection_reason,
         lr.created_at

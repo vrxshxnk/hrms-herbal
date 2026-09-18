@@ -1,6 +1,8 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+
 interface EmployeeLeaveTableProps {
   data: any[];
   isLoading: boolean;
@@ -13,16 +15,12 @@ export default function EmployeeLeaveTable({
   onRefresh,
 }: EmployeeLeaveTableProps) {
   const { user, roles, hasRole, token } = useAuth();
-  const hasHrRole =
-    hasRole("hr") ||
-    hasRole("manager") ||
-    roles.includes("hr") ||
-    roles.includes("manager") ||
-    ["hr", "manager"].includes(user?.system_role?.toLowerCase());
-  console.log("user", user);
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  
+  const isHR = hasRole("hr") || roles.includes("hr") || user?.system_role?.toLowerCase() === "hr";
+  const isManager = hasRole("manager") || roles.includes("manager") || user?.system_role?.toLowerCase() === "manager";
+  const hasActionRole = isHR || isManager;
 
-  // Balance state map: key is employee_id, value is list of balances
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [balanceMap, setBalanceMap] = useState<Record<string, any[]>>({});
 
   useEffect(() => {
@@ -33,8 +31,6 @@ export default function EmployeeLeaveTable({
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
-        
-        // Response format from Strategy GET: { data: [ { employee_id, balances: [...] }, ... ] }
         const rawData = result?.data?.data || result?.data || [];
         const map: Record<string, any[]> = {};
 
@@ -58,6 +54,11 @@ export default function EmployeeLeaveTable({
     id: string,
     newStatus: "Approved" | "Rejected",
   ) => {
+    if (!id) {
+      console.error("Cannot update status: Invalid leave ID");
+      return;
+    }
+
     try {
       setUpdatingId(id);
       const res = await fetch(`/api/v1/leave/${id}`, {
@@ -71,7 +72,7 @@ export default function EmployeeLeaveTable({
           action: newStatus,
           approved_by: user?.sub,
           rejection_reason:
-            newStatus === "Rejected" ? "Rejected by HR" : null,
+            newStatus === "Rejected" ? "Rejected during review process" : null,
         }),
       });
 
@@ -104,11 +105,9 @@ export default function EmployeeLeaveTable({
   };
 
   const getBalanceDisplay = (row: any) => {
-    // Lookup employee balances using employee_id from row
     const empBalances = balanceMap[row.employee_id];
     if (!empBalances || empBalances.length === 0) return "-";
 
-    // Match leave balance by type id or name
     const matched = empBalances.find(
       (b: any) =>
         b.leave_type_id === row.leave_type_id ||
@@ -147,7 +146,7 @@ export default function EmployeeLeaveTable({
       </div>
 
       <div className="w-full overflow-x-auto rounded-lg">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+        <table className="w-full text-left border-collapse min-w-[900px]">
           <thead>
             <tr className="bg-blue-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
               <th className="py-3 px-4">Name</th>
@@ -157,8 +156,9 @@ export default function EmployeeLeaveTable({
               <th className="py-3 px-4">Days</th>
               <th className="py-3 px-4">Start</th>
               <th className="py-3 px-4">End</th>
-              <th className="py-3 px-4">Status</th>
-              {hasHrRole && (
+              <th className="py-3 px-4">Manager Approval</th>
+              <th className="py-3 px-4">HR Status</th>
+              {hasActionRole && (
                 <th className="py-3 px-4 text-center">Action</th>
               )}
             </tr>
@@ -166,100 +166,136 @@ export default function EmployeeLeaveTable({
           <tbody className="divide-y divide-gray-100 text-sm">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={9} className="text-center py-6 text-gray-500">
+                <td colSpan={10} className="text-center py-6 text-gray-500">
                   No leave requests found.
                 </td>
               </tr>
             ) : (
-              data.map((row) => (
-                <tr
-                  key={row.request_id}
-                  className="hover:bg-gray-50/60 transition-colors"
-                >
-                  <td className="py-3 px-4 font-medium text-gray-900 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={
-                          row.profile_photo_url ||
-                          `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                            row.employee_name || "Employee",
-                          )}`
-                        }
-                        alt={row.employee_name}
-                        className="w-8 h-8 rounded-full object-cover shrink-0"
-                      />
-                      <span>{row.employee_name}</span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-emerald-600 font-medium">
-                    {row.leave_type}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {row.department || "N/A"}
-                  </td>
-                 <td className="py-3 px-4 whitespace-nowrap">
-  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
-    <span className="text-blue-600 font-bold">
-      {getBalanceDisplay(row).split('/')[0]?.trim()}
-    </span>
-    <span className="text-slate-400 font-normal">/</span>
-    <span className="text-slate-500">
-      {getBalanceDisplay(row).split('/')[1]?.trim()} Days
-    </span>
-  </div>
-</td>
-                  <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {row.duration_display}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {formatDate(row.start_date)}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap text-gray-600">
-                    {formatDate(row.end_date)}
-                  </td>
-                  <td className="py-3 px-4 whitespace-nowrap">
-                    <span
-                      className={`px-2.5 py-1 text-xs font-medium rounded-full ${
-                        row.status === "Approved"
-                          ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
-                          : row.status === "Rejected"
-                            ? "bg-rose-50 text-rose-600 border border-rose-200/60"
-                            : "bg-amber-50 text-amber-600 border border-amber-200/60"
-                      }`}
-                    >
-                      {row.status}
-                    </span>
-                  </td>
-                  {hasHrRole && (
-                    <td className="py-3 px-4 whitespace-nowrap text-center">
-                      <div className="flex items-center justify-center gap-2">
-                        {row.status !== "Approved" && (
-                          <button
-                            disabled={updatingId === row.request_id}
-                            onClick={() =>
-                              handleStatusUpdate(row.request_id, "Approved")
-                            }
-                            className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {row.status !== "Rejected" && (
-                          <button
-                            disabled={updatingId === row.request_id}
-                            onClick={() =>
-                              handleStatusUpdate(row.request_id, "Rejected")
-                            }
-                            className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
-                          >
-                            Reject
-                          </button>
-                        )}
+              data.map((row) => {
+                console.log("row",row);
+                // Fix 1: Normalize leave ID across backend key names
+                const leaveId = row.id || row.request_id;
+
+                // Fix 2: Priority given to row.manager_approval_status
+                const managerStatus = 
+                  row.manager_approval_status ?? 
+                  (row.reporting_manager_id ? "Pending" : "N/A");
+
+                const isManagerApproved = managerStatus === "Approved" || !row.reporting_manager_id;
+                const canHrApprove = isHR && isManagerApproved;
+
+                return (
+                  <tr
+                    key={leaveId}
+                    className="hover:bg-gray-50/60 transition-colors"
+                  >
+                    <td className="py-3 px-4 font-medium text-gray-900 whitespace-nowrap">
+                      <div className="flex items-center gap-3">
+                        <img
+                          src={
+                            row.profile_photo_url ||
+                            `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+                              row.employee_name || "Employee",
+                            )}`
+                          }
+                          alt={row.employee_name}
+                          className="w-8 h-8 rounded-full object-cover shrink-0"
+                        />
+                        <span>{row.employee_name}</span>
                       </div>
                     </td>
-                  )}
-                </tr>
-              ))
+                    <td className="py-3 px-4 whitespace-nowrap text-emerald-600 font-medium">
+                      {row.leave_type}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {row.department || "N/A"}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
+                        <span className="text-blue-600 font-bold">
+                          {getBalanceDisplay(row).split('/')[0]?.trim()}
+                        </span>
+                        <span className="text-slate-400 font-normal">/</span>
+                        <span className="text-slate-500">
+                          {getBalanceDisplay(row).split('/')[1]?.trim()} Days
+                        </span>
+                      </div>
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {row.duration_display || `${row.total_days} Days`}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {formatDate(row.start_date)}
+                    </td>
+                    <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                      {formatDate(row.end_date)}
+                    </td>
+
+                    {/* MANAGER APPROVAL COLUMN */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                          managerStatus === "Approved"
+                            ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+                            : managerStatus === "Rejected"
+                              ? "bg-rose-50 text-rose-600 border border-rose-200/60"
+                              : managerStatus === "N/A"
+                                ? "bg-gray-100 text-gray-500"
+                                : "bg-amber-50 text-amber-600 border border-amber-200/60"
+                        }`}
+                      >
+                        {managerStatus}
+                      </span>
+                    </td>
+
+                    {/* HR STATUS COLUMN */}
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <span
+                        className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                          row.status === "Approved"
+                            ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+                            : row.status === "Rejected"
+                              ? "bg-rose-50 text-rose-600 border border-rose-200/60"
+                              : "bg-amber-50 text-amber-600 border border-amber-200/60"
+                        }`}
+                      >
+                        {row.status}
+                      </span>
+                    </td>
+
+                    {/* ACTION BUTTONS */}
+                    {hasActionRole && (
+                      <td className="py-3 px-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
+                          {row.status !== "Approved" && (
+                            <button
+                              disabled={updatingId === leaveId || (isHR && !canHrApprove)}
+                              title={
+                                isHR && !canHrApprove
+                                  ? "Waiting for Manager Approval first"
+                                  : ""
+                              }
+                              onClick={() => handleStatusUpdate(leaveId, "Approved")}
+                              className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                              Approve
+                            </button>
+                          )}
+                          {row.status !== "Rejected" && (
+                            <button
+                              disabled={updatingId === leaveId}
+                              onClick={() => handleStatusUpdate(leaveId, "Rejected")}
+                              className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
+                            >
+                              Reject
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

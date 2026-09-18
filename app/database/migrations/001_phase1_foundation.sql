@@ -235,6 +235,9 @@ create table if not exists  leave_requests (
     start_date DATE NOT NULL,
     end_date DATE NOT NULL, 
     total_days DECIMAL(4, 1) NOT NULL, 
+    manager_approval_status VARCHAR(20) DEFAULT 'Pending'CHECK (manager_approval_status IN ('Pending', 'Approved', 'Rejected')),
+    manager_approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    manager_action_at TIMESTAMP WITH TIME ZONE;
     half_day_type VARCHAR(20) DEFAULT 'full_day', 
     status VARCHAR(20) DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected' )),
     reason TEXT,
