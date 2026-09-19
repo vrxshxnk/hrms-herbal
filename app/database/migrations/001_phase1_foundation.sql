@@ -322,6 +322,29 @@ create table if not exists company_events_attendee(
 );
 
 
+
+create table if not exists employee_documents (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    category VARCHAR(50) NOT NULL,
+    file_name VARCHAR(255) NOT NULL,
+    file_size_bytes BIGINT NOT NULL,
+    file_type VARCHAR(100),
+    file_url TEXT NOT NULL, 
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'verified', 'rejected')),
+    rejection_reason TEXT,
+    verified_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    verified_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+
+CREATE INDEX IF NOT EXISTS idx_emp_docs_employee_id ON employee_documents(employee_id);
+CREATE INDEX IF NOT EXISTS idx_emp_docs_category ON employee_documents(category);
+CREATE INDEX IF NOT EXISTS idx_emp_docs_status ON employee_documents(status);
+
+
 CREATE INDEX IF NOT EXISTS idx_leave_requests_emp_id ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);
 CREATE INDEX IF NOT EXISTS idx_announcements_published ON announcements(is_published, published_at);

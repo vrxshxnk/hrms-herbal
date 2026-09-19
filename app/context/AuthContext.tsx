@@ -38,12 +38,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<string[]>([]);
 
-  // Function to perform backend sync
+  // Helper to ensure 'employee' role exists if neither manager nor hr are assigned
+  const normalizeRoles = (rawRoles: string[]): string[] => {
+    const list = Array.from(new Set(rawRoles));
+    const hasElevatedRole = list.some((r) =>
+      ["manager", "hr", "admin"].includes(r.toLowerCase())
+    );
+
+    if (!hasElevatedRole && !list.includes("employee")) {
+      list.push("employee");
+    }
+    return list;
+  };
+
   const syncWithDatabase = async () => {
     try {
-      if (!keycloak.token) {
-        return;
-      }
+      if (!keycloak.token) return;
+
       const res = await fetch("/api/v1/auth/sync", {
         method: "POST",
         headers: {
@@ -51,7 +62,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         },
       });
       const json = await res.json();
-      console.log("sync response:", json);
       if (res.ok && json.data?.employee) {
         setDbUser(json.data.employee);
       } else if (res.ok && json.employee) {
@@ -81,23 +91,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const realmRoles = keycloak.tokenParsed?.realm_access?.roles ?? [];
           const clientRoles =
             keycloak.tokenParsed?.resource_access?.["hrms-app"]?.roles ?? [];
-          const combinedRoles = Array.from(
-            new Set([...realmRoles, ...clientRoles]),
-          );
-          setRoles(combinedRoles);
-          console.log(combinedRoles, "userroles");
 
-          // Sync with PostgreSQL database
+          const processedRoles = normalizeRoles([...realmRoles, ...clientRoles]);
+          setRoles(processedRoles);
+
           await syncWithDatabase();
 
-          // If user goes to /login while authenticated, push them to dashboard
           if (pathname === "/login") {
             router.replace("/");
           }
 
           if (intervalRef.current) clearInterval(intervalRef.current);
 
-          // Refresh token logic
           intervalRef.current = setInterval(() => {
             keycloak
               .updateToken(30)
@@ -105,12 +110,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 if (refreshed && keycloak.token) {
                   setToken(keycloak.token);
                   setUser(keycloak.tokenParsed || null);
-                  const updatedRoles =
+
+                  const updatedRealmRoles =
+                    keycloak.tokenParsed?.realm_access?.roles ?? [];
+                  const updatedClientRoles =
                     keycloak.tokenParsed?.resource_access?.["hrms-app"]
                       ?.roles ?? [];
-                  setRoles(updatedRoles);
 
-                  // Re-sync on token refresh
+                  setRoles(
+                    normalizeRoles([...updatedRealmRoles, ...updatedClientRoles])
+                  );
+
                   await syncWithDatabase();
                 }
               })
@@ -121,7 +131,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               });
           }, 10000);
         } else {
-          // Not authenticated
           setToken(null);
           setUser(null);
           setDbUser(null);
@@ -168,7 +177,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return false;
   };
 
-  // Global Loading State
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
@@ -184,7 +192,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  // Prevent flashing protected content before redirect
   if (!authenticated && pathname !== "/login") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0] text-gray-600 font-medium">

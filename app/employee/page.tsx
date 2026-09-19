@@ -10,6 +10,7 @@ import {
   Mail,
   Phone,
   Loader2,
+  Upload,
 } from "lucide-react";
 import { AddEmployeeModal } from "../modals/AddEmployeeModal";
 import Link from "next/link";
@@ -49,7 +50,9 @@ const EmployeePage = () => {
   );
 
   const { roles, token } = useAuth();
-  const hasHrRole= roles.includes("hr");
+  console.log("roles employee dsahboard m : ", roles);
+  const hasHrRole = roles.includes("hr");
+  const hasEmpRoles = roles.includes("employee");
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
@@ -155,13 +158,13 @@ const EmployeePage = () => {
         </div>
 
         {hasHrRole && (
-           <button
-          onClick={handleOpenAddModal}
-          className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
-        >
-          <Plus className="w-4 h-4" />
-          Add Employee
-        </button>
+          <button
+            onClick={handleOpenAddModal}
+            className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
+          >
+            <Plus className="w-4 h-4" />
+            Add Employee
+          </button>
         )}
       </div>
 
@@ -345,6 +348,19 @@ const EmployeePage = () => {
                     <div className="flex items-center gap-2">
                       <Phone className="w-3.5 h-3.5 text-[#316AFF]" />
                       <span>{emp.mobile_number}</span>
+                    </div>
+
+                    <div className="p-4 bg-white/60 rounded-b-2xl border-t border-slate-100 flex items-center justify-between">
+                      <Link
+                        href={`/docs/${emp.id}?name=${encodeURIComponent(
+                          emp.display_name ||
+                            `${emp.first_name}${emp.last_name}`,
+                        )}`}
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-blue-50 text-[#316AFF] border border-blue-200 rounded-xl text-xs font-semibold transition-all shadow-2xs hover:border-blue-400 group"
+                      >
+                        <Upload className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                        <span>Upload Docs</span>
+                      </Link>
                     </div>
                   </div>
                 </div>

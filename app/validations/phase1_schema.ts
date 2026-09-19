@@ -296,6 +296,34 @@ export const createAnnouncementSchema = z.object({
   is_published: z.boolean().default(true),
 });
 
+
+
+export const createEmployeeDocumentSchema = z.object({
+  employee_id: z.string().uuid("Invalid Employee ID"),
+  category: z.enum(
+    ["aadhar", "pan", "education", "experience", "relieving", "bank", "other"],
+    { message: "Invalid document category" }
+  ),
+  file_name: z
+    .string()
+    .trim()
+    .min(1, "File name is required"),
+  file_size_bytes: z
+    .number({ message: "File size must be a number" })
+    .positive("File size must be greater than 0"),
+  file_type: optionalText,
+  file_url: z
+    .string()
+    .trim()
+    .url("Invalid document URL"),
+  status: z
+    .enum(["pending", "verified", "rejected"])
+    .default("pending"),
+  rejection_reason: optionalText,
+  verified_by: optionalUuid,
+  verified_at: optionalText,
+});
+
 // -----------------------------------------------------------------------------
 // 5. EMPLOYEE AUDIT LOG SCHEMA
 // -----------------------------------------------------------------------------
