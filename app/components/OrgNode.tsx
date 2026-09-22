@@ -2,112 +2,104 @@
 
 import React, { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import { User } from "lucide-react";
+import { User, Plus, Minus } from "lucide-react";
+
+export type OrgTier = "leader" | "manager" | "ic";
 
 export type OrgNodeData = {
+  id: string;
   name: string;
   designation: string;
   department: string;
   employee_code: string;
   profile_photo_url?: string | null;
   subordinatesCount?: number;
+  tier: OrgTier;
   isCurrentUser?: boolean;
+  isSelected?: boolean;
+  isCollapsed?: boolean;
+  onToggleCollapse?: (id: string) => void;
+  onSelect?: (id: string) => void;
 };
 
-// Soft, soothing pastel per department — like different branches of a tree.
-// Falls back to a neutral slate tone for unmatched/empty departments.
-const DEPARTMENT_PALETTE: Record<string, { bg: string; ring: string; text: string; avatarBg: string }> = {
-  IT: { bg: "#EAF2FF", ring: "#BFDBFE", text: "#1D4ED8", avatarBg: "#DBEAFE" },
-  QC: { bg: "#EAFBF1", ring: "#BBF7D0", text: "#15803D", avatarBg: "#DCFCE7" },
-  QA: { bg: "#F5F0FF", ring: "#DDD6FE", text: "#6D28D9", avatarBg: "#EDE9FE" },
-  HR: { bg: "#FFF7E8", ring: "#FDE68A", text: "#B45309", avatarBg: "#FEF3C7" },
-  "DIGITAL MARKETING": { bg: "#FFF0F5", ring: "#FBCFE8", text: "#BE185D", avatarBg: "#FCE7F3" },
+// Color by hierarchy tier — matches the legend shown under the chart.
+export const TIER_PALETTE: Record<OrgTier, { dot: string; avatarBg: string; avatarText: string; label: string }> = {
+  leader: { dot: "#8B5CF6", avatarBg: "#EDE9FE", avatarText: "#6D28D9", label: "Company leader" },
+  manager: { dot: "#3B82F6", avatarBg: "#DBEAFE", avatarText: "#1D4ED8", label: "Manager" },
+  ic: { dot: "#94A3B8", avatarBg: "#F1F5F9", avatarText: "#475569", label: "Individual contributor" },
 };
 
-const DEFAULT_PALETTE = { bg: "#F8FAFC", ring: "#E2E8F0", text: "#475569", avatarBg: "#F1F5F9" };
-
-function getPalette(department: string) {
-  const key = (department || "").trim().toUpperCase();
-  return DEPARTMENT_PALETTE[key] ?? DEFAULT_PALETTE;
+function initials(name: string) {
+  return name
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase())
+    .join("");
 }
 
 export const OrgNodeComponent = memo(({ data }: { data: OrgNodeData }) => {
-  const palette = getPalette(data.department);
+  const palette = TIER_PALETTE[data.tier];
+  const hasChildren = !!data.subordinatesCount;
 
   return (
-    <div
-      className="flex flex-col items-center text-center transition-transform hover:scale-105"
-      style={{ width: 220 }}
-    >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="!bg-slate-400 !w-2.5 !h-2.5 !border-2 !border-white"
-      />
+    <div className="relative" style={{ width: 220 }}>
+      <Handle type="target" position={Position.Top} className="!bg-slate-300 !w-2 !h-2 !border-0" />
 
       <div
-        className="rounded-full flex flex-col items-center justify-center px-5 py-6 shadow-sm"
-        style={{
-          backgroundColor: palette.bg,
-          border: `2px solid ${data.isCurrentUser ? "#2563eb" : palette.ring}`,
-          boxShadow: data.isCurrentUser
-            ? "0 0 0 4px rgba(37,99,235,0.15)"
-            : "0 1px 3px rgba(15,23,42,0.06)",
-          minHeight: 150,
-        }}
+        onClick={() => data.onSelect?.(data.id)}
+        className={`bg-white rounded-xl shadow-sm p-3 cursor-pointer transition-all hover:shadow-md ${
+          data.isSelected
+            ? "border-2 border-emerald-500 ring-2 ring-emerald-100"
+            : "border border-slate-200"
+        }`}
       >
-        {data.profile_photo_url ? (
-          <img
-            src={data.profile_photo_url}
-            alt={data.name}
-            className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-sm mb-2"
-          />
-        ) : (
-          <div
-            className="w-12 h-12 rounded-full flex items-center justify-center mb-2"
-            style={{ backgroundColor: palette.avatarBg, color: palette.text }}
-          >
-            <User className="w-5 h-5" />
-          </div>
+        {hasChildren && (
+          <span className="absolute -top-2 right-3 bg-emerald-50 text-emerald-700 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border border-emerald-200">
+            {data.subordinatesCount}
+          </span>
         )}
 
-        <h3 className="font-semibold text-sm text-slate-800 leading-tight px-1">
-          {data.name}
-        </h3>
-        <p
-          className="text-xs font-medium mt-0.5 px-1 truncate max-w-[170px]"
-          style={{ color: palette.text }}
-        >
-          {data.designation}
-        </p>
-        {data.department && (
-          <p className="text-[10px] text-slate-400 mt-0.5">{data.department}</p>
-        )}
+        <div className="flex items-center gap-2.5">
+          {data.profile_photo_url ? (
+            <img src={data.profile_photo_url} alt={data.name} className="w-9 h-9 rounded-full object-cover shrink-0" />
+          ) : (
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+              style={{ backgroundColor: palette.avatarBg, color: palette.avatarText }}
+            >
+              {initials(data.name) || <User className="w-4 h-4" />}
+            </div>
+          )}
 
-        {(data.employee_code || !!data.subordinatesCount) && (
-          <div className="flex items-center gap-1.5 mt-2">
-            {data.employee_code && (
-              <span className="text-[10px] font-mono bg-white/70 text-slate-500 px-2 py-0.5 rounded-full">
-                {data.employee_code}
-              </span>
-            )}
-            {!!data.subordinatesCount && (
-              <span
-                className="text-[10px] font-semibold px-2 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: palette.text }}
-              >
-                {data.subordinatesCount} Reports
-              </span>
-            )}
+          <div className="overflow-hidden text-left">
+            <h3 className="font-semibold text-sm text-slate-800 truncate leading-tight">{data.name}</h3>
+            <p className="text-xs text-slate-500 truncate">{data.designation}</p>
+            {data.department && <span className="text-[10px] text-slate-400">{data.department}</span>}
           </div>
+        </div>
+
+        {hasChildren && (
+          <p className="text-[10px] text-slate-400 mt-2 pl-11">
+            {data.subordinatesCount} report{data.subordinatesCount === 1 ? "" : "s"}
+          </p>
         )}
       </div>
 
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        className="!bg-slate-400 !w-2.5 !h-2.5 !border-2 !border-white"
-      />
+      {hasChildren && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            data.onToggleCollapse?.(data.id);
+          }}
+          className="absolute left-1/2 -bottom-3 -translate-x-1/2 w-6 h-6 rounded-full bg-white border border-slate-300 flex items-center justify-center text-slate-500 hover:border-emerald-400 hover:text-emerald-600 shadow-sm z-10"
+          title={data.isCollapsed ? "Expand" : "Collapse"}
+        >
+          {data.isCollapsed ? <Plus size={12} /> : <Minus size={12} />}
+        </button>
+      )}
+
+      <Handle type="source" position={Position.Bottom} className="!bg-slate-300 !w-2 !h-2 !border-0" />
     </div>
   );
 });

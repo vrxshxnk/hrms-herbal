@@ -11,10 +11,12 @@ import {
   CircleHelp,
   Settings,
   LogOut,
+  Banknote,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
 
+import Link from "next/link";
 type HeaderProps = {
   toggleSidebar: () => void;
 };
@@ -166,6 +168,14 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   <CircleHelp className="w-4 h-4" />
                   <span>Help Center</span>
                 </button>
+                
+                <Link 
+                   href="/salary"
+                   className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+                   >
+                  <Banknote className="w-4 h-4 text-emerald-600" />
+                    <span>Advance Salary Request</span>
+                </Link>
 
                 <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
                   <Settings className="w-4 h-4" />
@@ -187,7 +197,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
               </div>
             </div>
           )}
-
 
           </div>
         </div>

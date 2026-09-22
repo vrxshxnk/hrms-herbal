@@ -324,6 +324,47 @@ export const createEmployeeDocumentSchema = z.object({
   verified_at: optionalText,
 });
 
+
+export const advanceSalarySchema = z.object({
+  requestType: z.enum(["advance", "loan"], {
+    message: "Request type must be either 'advance_salary' or 'loan'",
+  }),
+  amountRequested: z
+    .number({ message: "Amount must be a number" })
+    .positive("Requested amount must be greater than 0"),
+  approvedAmount: z
+    .number()
+    .positive("Approved amount must be greater than 0")
+    .optional()
+    .nullable(),
+  tenureMonths: z
+    .number({ message: "Tenure months must be a number" })
+    .int("Tenure months must be an integer")
+    .min(1, "Tenure must be at least 1 month")
+    .max(24, "Maximum allowed tenure is 24 months")
+    .default(1),
+  reason: z
+    .string({ message: "Reason is required" })
+    .trim()
+    .min(5, "Please provide a reason of at least 5 characters")
+    .max(500, "Reason cannot exceed 500 characters"),
+  status: z
+    .enum(["Pending", "In_Review", "Approved", "Rejected", "Disbursed"])
+    .default("Pending"),
+  managerApprovalStatus: z
+    .enum(["Pending", "Approved", "Rejected"])
+    .default("Pending"),
+  managerApprovedBy: optionalUuid,
+  hrApprovalStatus: z
+    .enum(["Pending", "Approved", "Rejected"])
+    .default("Pending"),
+  hrApprovedBy: optionalUuid,
+  financeStatus: z
+    .enum(["Pending", "Approved", "Rejected"])
+    .default("Pending"),
+  financeApprovedBy: optionalUuid,
+});
+
 // -----------------------------------------------------------------------------
 // 5. EMPLOYEE AUDIT LOG SCHEMA
 // -----------------------------------------------------------------------------

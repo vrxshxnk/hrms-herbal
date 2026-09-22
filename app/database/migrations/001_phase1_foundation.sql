@@ -249,6 +249,39 @@ create table if not exists  leave_requests (
     CONSTRAINT chk_date_range CHECK (end_date >= start_date)
 );
 
+create table if not exists advance_salary_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    -- Request Details
+    request_type VARCHAR(50) NOT NULL DEFAULT 'advance' CHECK (request_type IN ('advance', 'loan')),
+    amount_requested DECIMAL(12, 2) NOT NULL CHECK (amount_requested > 0),
+    approved_amount DECIMAL(12, 2) DEFAULT 0.00 CHECK (approved_amount >= 0),
+    tenure_months DECIMAL(4, 1) NOT NULL CHECK (tenure_months > 0),
+    reason TEXT,
+    -- Overall Workflow Status
+    status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (status IN ('Pending', 'Approved', 'Rejected', 'Disbursed', 'Cancelled')),  
+    -- 1. Manager Approval Stage
+    manager_status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (manager_status IN ('Pending', 'Approved', 'Rejected')),
+    manager_approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    manager_remarks TEXT,
+    manager_approved_at TIMESTAMP WITH TIME ZONE,   
+    -- 2. HR Approval Stage
+    hr_status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (hr_status IN ('Pending', 'Approved', 'Rejected')),
+    hr_approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    hr_remarks TEXT,
+    hr_approved_at TIMESTAMP WITH TIME ZONE,   
+    -- 3. Finance / Disbursement Stage
+    finance_status VARCHAR(20) NOT NULL DEFAULT 'Pending' CHECK (finance_status IN ('Pending', 'Approved', 'Rejected', 'Disbursed')),
+    finance_approved_by UUID REFERENCES employees(id) ON DELETE SET NULL,
+    finance_remarks TEXT,
+    transaction_reference VARCHAR(100),
+    disbursed_at TIMESTAMP WITH TIME ZONE,
+    -- Audit Timestamps
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+
 
 create table if not exists faq_queries(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -352,3 +385,5 @@ CREATE INDEX IF NOT EXISTS idx_events_start_end ON company_events(start_time, en
 CREATE INDEX IF NOT EXISTS idx_sop_category ON sop_documents(category);
 CREATE INDEX IF NOT EXISTS idx_faq_queries_status ON faq_queries(status);
 CREATE INDEX IF NOT EXISTS idx_faq_queries_created_at ON faq_queries(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_adv_salary_emp_id ON advance_salary_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_adv_salary_status ON advance_salary_requests(status);
