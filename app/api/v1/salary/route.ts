@@ -69,12 +69,14 @@ const patchStrategies = {
       throw { status: 400, message: "Invalid status for Manager approval" };
     }
 
+    const nextStatus = upperStatus === "REJECTED" ? "Rejected" :"Pending";
     const query = `
       UPDATE advance_salary_requests
       SET 
         manager_status = $1,
         manager_remarks = $2,
         manager_approved_at = NOW(),
+        status= $5,
         updated_at = NOW()
       WHERE id = $3 
         AND (
@@ -82,7 +84,7 @@ const patchStrategies = {
         )
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, requestId, actorId]);
+    return client.query(query, [status, remarks, requestId, actorId,nextStatus]);
   },
 
   // HR APPROVAL STRATEGY
@@ -92,27 +94,29 @@ const patchStrategies = {
     if (!["APPROVED", "REJECTED"].includes(upperStatus)) {
       throw { status: 400, message: "Invalid status for HR approval" };
     }
-
+    const nextStatus = upperStatus === "REJECTED" ? "Rejected" :"Pending";
     const query = `
       UPDATE advance_salary_requests
       SET 
         hr_status = $1,
         hr_remarks = $2,
         hr_approved_at = NOW(),
+        status=$4,
         updated_at = NOW()
       WHERE id = $3 AND manager_status = 'Approved'
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, requestId]);
+    return client.query(query, [status, remarks, requestId, nextStatus]);
   },
 
   // FINANCE DISBURSEMENT STRATEGY
   "salary:approve:finance": async (client: any, requestId: string, _actorId: string, body: any) => {
     const { status, remarks, disbursementTxnId } = body;
-    if (!["DISBURSED", "REJECTED"].includes(status)) {
+    const upperStatus = status?.toUpperCase();
+    if (!["DISBURSED", "REJECTED"].includes(upperStatus)) {
       throw { status: 400, message: "Invalid status for Finance processing" };
     }
-
+     const nextStatus = upperStatus === "REJECTED" ? "Rejected" :"Approved";
     const query = `
       UPDATE advance_salary_requests
       SET 
@@ -120,11 +124,12 @@ const patchStrategies = {
         finance_remarks = $2,
         transaction_reference = $3,
         disbursed_at = NOW(),
+        status=$5,
         updated_at = NOW()
       WHERE id = $4 AND hr_status = 'Approved'
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, disbursementTxnId, requestId]);
+    return client.query(query, [status, remarks, disbursementTxnId, requestId, nextStatus]);
   },
 };
 

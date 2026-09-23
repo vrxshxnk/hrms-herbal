@@ -154,35 +154,37 @@ export default function AdvanceSalaryPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "APPROVED":
-      case "Approved":
-      case "DISBURSED":
-      case "Disbursed":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            {status}
-          </span>
-        );
-      case "REJECTED":
-      case "Rejected":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-100">
-            <XCircle className="w-3.5 h-3.5" />
-            Rejected
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
-            <Clock className="w-3.5 h-3.5" />
-            Pending Review
-          </span>
-        );
-    }
-  };
+ const getStatusBadge = (status: string, financeStatus?: string) => {
+  // If Finance rejected it, immediately show Rejected
+  if (status === "Rejected" || status === "REJECTED" || financeStatus === "Rejected") {
+    return (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-50 text-rose-600 border border-rose-100">
+        <XCircle className="w-3.5 h-3.5" />
+        Rejected
+      </span>
+    );
+  }
+
+  switch (status) {
+    case "APPROVED":
+    case "Approved":
+    case "DISBURSED":
+    case "Disbursed":
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-600 border border-emerald-100">
+          <CheckCircle2 className="w-3.5 h-3.5" />
+          {status}
+        </span>
+      );
+    default:
+      return (
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-600 border border-amber-100">
+          <Clock className="w-3.5 h-3.5" />
+          Pending Review
+        </span>
+      );
+  }
+};
 
   return (
     <div className="min-h-screen bg-slate-50/50 p-6 space-y-6">
@@ -222,8 +224,8 @@ export default function AdvanceSalaryPage() {
           </div>
           <div>
             <p className="text-xs text-slate-500 font-medium">Active / Pending</p>
-            <p className="text-xl font-bold text-slate-900 mt-0.5">
-              {requests.filter((r) => r.status === "Pending" || r.status === "In_Review").length}
+            <p className="text-xl font-bold text-slate-900 mt-0.5">    
+              {requests.filter((r) => (r.status === "Pending" || r.status === "In_Review") && r.finance_status !== "Rejected").length}
             </p>
           </div>
         </div>
@@ -370,15 +372,24 @@ export default function AdvanceSalaryPage() {
                                 </>
                               )}
 
-                              {/* Finance Action */}
-                              {isFinance && req.hr_status === "Approved" && req.finance_status === "Pending" && (
-                                <button
-                                  onClick={() => handleApprovalAction(req.id, "finance", "Disbursed")}
-                                  className="px-2 py-1 rounded-lg bg-blue-50 text-[#316AFF] hover:bg-blue-100 transition-colors font-medium text-[11px]"
-                                >
-                                  Disburse
-                                </button>
-                              )}
+                           {/* Finance Action: Disburse + Reject */}
+                          {isFinance && req.hr_status === "Approved" && req.finance_status === "Pending" && (
+                          <>
+                              <button
+                                 onClick={() => handleApprovalAction(req.id, "finance", "Disbursed")}
+                                 className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#316AFF] hover:bg-blue-100 transition-colors font-medium text-[11px]"
+                              >
+                               Disburse
+                            </button>
+                            <button
+                                  onClick={() => handleApprovalAction(req.id, "finance", "Rejected")}
+                                  className="p-1.5 rounded-lg bg-rose-50 text-rose-600 hover:bg-rose-100 transition-colors"
+                                  title="Finance Reject"
+                            >
+                             <X className="w-3.5 h-3.5" />
+                               </button>
+                            </>
+                          )}
                             </div>
                           )}
                         </td>
