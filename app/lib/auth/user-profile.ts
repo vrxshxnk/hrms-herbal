@@ -2,11 +2,11 @@ import { getPool } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 
 export interface DBUserProfile {
-  id: string; 
+  id: string;
   employee_code: string;
   keycloak_id: string;
   work_email: string;
-  system_role: string; 
+  system_role: string;
   department_id: string | null;
   location_id?: string | null;
   legal_entity_id?: string | null;
@@ -19,15 +19,15 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
   const client = await getPool().connect();
   try {
     const result = await client.query(
-      `SELECT 
-         id, 
-         employee_code, 
-         keycloak_id, 
-         work_email, 
+      `SELECT
+         id,
+         employee_code,
+         keycloak_id,
+         work_email,
          department_id,
          location_id,
          legal_entity_id
-       FROM employees 
+       FROM employees
        WHERE keycloak_id = $1 AND status = 'active'`,
       [authUser.sub]
     );
@@ -39,7 +39,7 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
       system_role = "admin";
     } else if (roles.includes("manager")) {
       system_role = "manager";
-    } else if(roles.includes("hr")){
+    } else if (roles.includes("hr")) {
       system_role = "hr";
     }
 

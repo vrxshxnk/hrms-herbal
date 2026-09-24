@@ -5,7 +5,7 @@
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { apiError, ok } from "@/app/lib/api/response";
 import { parseJson } from "@/app/lib/api/validation";
-import { getDBUserProfile } from "../auth/user-profile/route";
+import { getDBUserProfile } from "@/app/lib/auth/user-profile";
 import { createAnnouncementSchema } from "@/app/validations/phase1_schema";
 
 const announcementStrategies = {
