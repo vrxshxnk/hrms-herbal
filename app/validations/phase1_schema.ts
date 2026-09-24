@@ -325,6 +325,49 @@ export const createEmployeeDocumentSchema = z.object({
 });
 
 
+
+export const reimbursementCategoryEnum = z.enum([
+  "TRAVEL",
+  "FUEL",
+  "STAY",
+  "DINNER",
+  "TRAVEL_TICKET",
+  "MISCELLANEOUS",
+]);
+
+// Single Receipt Item Schema
+export const reimbursementItemSchema = z.object({
+  category: reimbursementCategoryEnum,
+  expenseDate: z.string().datetime().or(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)),
+  amount: z.number().positive("Amount must be greater than 0"),
+  merchantName: z.string().min(1, "Merchant name is required").optional(),
+  description: z.string().optional(),
+  receiptUrl: z.string().url("A valid receipt file URL is required"),
+  fileMimeType: z.string().optional(),
+});
+
+// POST Payload Schema (Parent Request + Array of Line Items)
+export const createReimbursementSchema = z.object({
+  title: z.string().min(3, "Title must be at least 3 characters"),
+  description: z.string().optional(),
+  tripStartDate: z.string().optional(),
+  tripEndDate: z.string().optional(),
+  currency: z.string().default("INR"),
+  items: z
+    .array(reimbursementItemSchema)
+    .min(1, "At least one bill/receipt must be uploaded"),
+});
+
+// PATCH Approval Payload Schema
+export const updateReimbursementApprovalSchema = z.object({
+  requestId: z.string().uuid("Invalid Request ID"),
+  stage: z.enum(["manager", "hr", "finance"]),
+  status: z.enum(["Approved", "Rejected", "Disbursed"]),
+  remarks: z.string().optional(),
+  disbursementTxnIdx: z.string().optional(), // Used by Finance role
+});
+
+
 export const advanceSalarySchema = z.object({
   requestType: z.enum(["advance", "loan"], {
     message: "Request type must be either 'advance_salary' or 'loan'",

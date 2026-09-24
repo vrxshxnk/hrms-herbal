@@ -282,6 +282,60 @@ create table if not exists advance_salary_requests (
 );
 
 
+create type reimbursement_category AS ENUM ('fuel', 'stay', 'dinner', 'travel_ticket', 'miscellaneous');
+create type approval_stage_status AS ENUM ('Pending', 'Approved', 'Rejected');
+create type overall_request_status AS ENUM ('Pending', 'In_Review', 'Approved', 'Rejected', 'Disbursed');
+
+
+create table if not exists  reimbursement_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    
+    -- Request details
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    trip_start_date DATE,
+    trip_end_date DATE,
+    total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    currency VARCHAR(10) NOT NULL DEFAULT 'INR',
+
+    status overall_request_status NOT NULL DEFAULT 'Pending',
+    manager_status approval_stage_status NOT NULL DEFAULT 'Pending',
+    manager_remarks TEXT,
+    manager_approved_at TIMESTAMPTZ,
+    
+
+    hr_status approval_stage_status NOT NULL DEFAULT 'Pending',
+    hr_remarks TEXT,
+    hr_approved_at TIMESTAMPTZ,
+    
+    -- Stage 3: Finance
+    finance_status approval_stage_status NOT NULL DEFAULT 'Pending',
+    finance_remarks TEXT,
+    transaction_reference VARCHAR(255),
+    disbursed_at TIMESTAMPTZ,
+    
+    -- System Audit Timestamps
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 3. CHILD TABLE: Individual Expenses / Bill Uploads
+create table if not exists reimbursement_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reimbursement_request_id UUID NOT NULL REFERENCES reimbursement_requests(id) ON DELETE CASCADE,
+    category reimbursement_category NOT NULL,
+    expense_date DATE NOT NULL,
+    amount NUMERIC(10, 2) NOT NULL,
+    merchant_name VARCHAR(255),
+    description TEXT,
+    
+    -- File Upload Support
+    receipt_url TEXT NOT NULL,
+    file_mime_type VARCHAR(100),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
 
 create table if not exists faq_queries(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -387,3 +441,8 @@ CREATE INDEX IF NOT EXISTS idx_faq_queries_status ON faq_queries(status);
 CREATE INDEX IF NOT EXISTS idx_faq_queries_created_at ON faq_queries(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_adv_salary_emp_id ON advance_salary_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_adv_salary_status ON advance_salary_requests(status);
+
+
+CREATE INDEX idx_reimb_emp_id ON reimbursement_requests(employee_id);
+CREATE INDEX idx_reimb_status ON reimbursement_requests(status);
+CREATE INDEX idx_reimb_items_req_id ON reimbursement_items(reimbursement_request_id);

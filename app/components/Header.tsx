@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Banknote,
+  Receipt
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
@@ -154,39 +155,48 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
               {/* MENU */}
               <div className="py-1">
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                  <User2 className="w-4 h-4" />
-                  <span>View Profile</span>
-                </button>
+       <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+    <User2 className="w-4 h-4" />
+    <span>View Profile</span>
+  </button>
 
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                  <CreditCard className="w-4 h-4" />
-                  <span>My Task</span>
-                </button>
+  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+    <CreditCard className="w-4 h-4" />
+    <span>My Task</span>
+  </button>
 
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                  <CircleHelp className="w-4 h-4" />
-                  <span>Help Center</span>
-                </button>
-                
-                <Link 
-                   href="/salary"
-                   className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
-                   >
-                  <Banknote className="w-4 h-4 text-emerald-600" />
-                    <span>Advance Salary Request</span>
-                </Link>
+  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+    <CircleHelp className="w-4 h-4" />
+    <span>Help Center</span>
+  </button>
+  
+  <Link 
+    href="/salary"
+    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+  >
+    <Banknote className="w-4 h-4 " />
+    <span>Advance Salary Request</span>
+  </Link>
 
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                  <Settings className="w-4 h-4" />
-                  <span>Account Settings</span>
-                </button>
+  {/* Reimbursement Request Link */}
+  <Link 
+    href="/reimbursements"
+    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+  >
+    <Receipt className="w-4 h-4 " />
+    <span>Reimbursement Request</span>
+  </Link>
 
-                <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                  <CreditCard className="w-4 h-4" />
-                  <span>Upgrade Plan</span>
-                </button>
-              </div>
+  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+    <Settings className="w-4 h-4" />
+    <span>Account Settings</span>
+  </button>
+
+  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+    <CreditCard className="w-4 h-4" />
+    <span>Upgrade Plan</span>
+  </button>
+</div>
 
               {/* LOGOUT */}
               <div className="border-t border-slate-100 py-1">
