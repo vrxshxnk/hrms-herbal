@@ -303,7 +303,7 @@ export default function AttendanceDashboard({
                       tickFormatter={(val) => `${val}%`}
                     />
                     <Tooltip
-                      formatter={(value: number) => [`${value}%`]}
+                      formatter={(value) => `${value ?? 0}%`}
                       contentStyle={{
                         backgroundColor: '#1e293b',
                         borderRadius: '8px',
