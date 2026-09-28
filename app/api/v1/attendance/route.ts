@@ -16,11 +16,21 @@ const attendanceStrategies = {
         e.profile_photo_url,
         e.employee_code,
         COALESCE(
-          json_object_agg(
+          jsonb_object_agg(
             EXTRACT(DAY FROM ar.attendance_date)::int,
-            ar.status
+            jsonb_build_object(
+              'status', ar.status,
+              'provider_status', ar.provider_status,
+              'shift_code', ar.shift_code,
+              'check_in_time', ar.check_in_time,
+              'check_out_time', ar.check_out_time,
+              'working_hours', ar.working_hours,
+              'overtime_hours', ar.overtime_hours,
+              'source', ar.source,
+              'manual_override', ar.is_manual_override
+            )
           ) FILTER (WHERE ar.id IS NOT NULL), 
-          '{}'::json
+          '{}'::jsonb
         ) AS daily_attendance
       FROM employees e
       LEFT JOIN attendance_records ar 
@@ -42,11 +52,21 @@ const attendanceStrategies = {
         e.profile_photo_url,
         e.employee_code,
         COALESCE(
-          json_object_agg(
+          jsonb_object_agg(
             EXTRACT(DAY FROM ar.attendance_date)::int,
-            ar.status
+            jsonb_build_object(
+              'status', ar.status,
+              'provider_status', ar.provider_status,
+              'shift_code', ar.shift_code,
+              'check_in_time', ar.check_in_time,
+              'check_out_time', ar.check_out_time,
+              'working_hours', ar.working_hours,
+              'overtime_hours', ar.overtime_hours,
+              'source', ar.source,
+              'manual_override', ar.is_manual_override
+            )
           ) FILTER (WHERE ar.id IS NOT NULL), 
-          '{}'::json
+          '{}'::jsonb
         ) AS daily_attendance
       FROM employees e
       LEFT JOIN attendance_records ar 
@@ -69,11 +89,21 @@ const attendanceStrategies = {
         e.profile_photo_url,
         e.employee_code,
         COALESCE(
-          json_object_agg(
+          jsonb_object_agg(
             EXTRACT(DAY FROM ar.attendance_date)::int,
-            ar.status
+            jsonb_build_object(
+              'status', ar.status,
+              'provider_status', ar.provider_status,
+              'shift_code', ar.shift_code,
+              'check_in_time', ar.check_in_time,
+              'check_out_time', ar.check_out_time,
+              'working_hours', ar.working_hours,
+              'overtime_hours', ar.overtime_hours,
+              'source', ar.source,
+              'manual_override', ar.is_manual_override
+            )
           ) FILTER (WHERE ar.id IS NOT NULL), 
-          '{}'::json
+          '{}'::jsonb
         ) AS daily_attendance
       FROM employees e
       LEFT JOIN attendance_records ar 
@@ -164,26 +194,36 @@ export async function POST(request: Request) {
           check_in_time,
           check_out_time,
           working_hours,
+          overtime_hours,
+          provider_status,
+          shift_code,
           location_id,
           shift_id,
           source,
           is_regularized,
           regularized_by,
-          regularization_reason
+          regularization_reason,
+          is_manual_override,
+          imported_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT (employee_id, attendance_date) 
         DO UPDATE SET
           status = EXCLUDED.status,
           check_in_time = EXCLUDED.check_in_time,
           check_out_time = EXCLUDED.check_out_time,
           working_hours = EXCLUDED.working_hours,
+          overtime_hours = EXCLUDED.overtime_hours,
+          provider_status = EXCLUDED.provider_status,
+          shift_code = EXCLUDED.shift_code,
           location_id = EXCLUDED.location_id,
           shift_id = EXCLUDED.shift_id,
           source = EXCLUDED.source,
           is_regularized = EXCLUDED.is_regularized,
           regularized_by = EXCLUDED.regularized_by,
-          regularization_reason = EXCLUDED.regularization_reason
+          regularization_reason = EXCLUDED.regularization_reason,
+          is_manual_override = EXCLUDED.is_manual_override,
+          imported_at = EXCLUDED.imported_at
         RETURNING *;
       `;
 
@@ -194,12 +234,17 @@ export async function POST(request: Request) {
         data.check_in_time,
         data.check_out_time,
         data.working_hours,
+        data.overtime_hours,
+        data.provider_status || null,
+        data.shift_code || null,
         data.location_id,
         data.shift_id,
         source,
         isRegularized,
         isRegularized ? user.id : null,
         data.regularization_reason || null,
+        true,
+        null,
       ];
 
       const savedRes = await client.query(upsertQuery, values);

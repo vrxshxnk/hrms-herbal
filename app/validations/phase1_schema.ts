@@ -229,7 +229,7 @@ export const taskInputSchema = z.object({
 export const createAttendanceRecordSchema = z.object({
   employee_id: z.string().uuid("Invalid Employee ID"),
   attendance_date: z.string().date("Invalid attendance date (YYYY-MM-DD)"),
-  status: z.enum(["present", "absent", "half_day", "on_leave"]),
+  status: z.enum(["present", "absent", "half_day", "on_leave", "week_off", "holiday", "provider_unknown"]),
   check_in_time: z.preprocess(
     emptyStringToUndefined,
     z.string().datetime("Invalid ISO timestamp").optional().nullable(),
@@ -243,9 +243,16 @@ export const createAttendanceRecordSchema = z.object({
     .min(0, "Working hours cannot be negative")
     .max(24, "Max 24 hours per day")
     .default(0.0),
+  overtime_hours: z
+    .number()
+    .min(0, "Overtime cannot be negative")
+    .max(24, "Max 24 overtime hours per day")
+    .default(0.0),
+  provider_status: optionalText,
+  shift_code: optionalText,
   location_id: optionalUuid,
   shift_id: optionalUuid,
-  source: z.enum(["biometric", "web", "mobile"]).default("biometric"),
+  source: z.enum(["biometric", "web", "mobile", "manual"]).default("manual"),
   is_regularized: z.boolean().optional().default(false),
   regularized_by: optionalUuid,
   regularization_reason: z.string().optional().nullable(),

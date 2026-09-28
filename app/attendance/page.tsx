@@ -14,12 +14,9 @@ import {
   Cell,
 } from 'recharts';
 import {
-  Plus,
   Download,
   MoreHorizontal,
   Search,
-  CheckCircle2,
-  XCircle,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -29,12 +26,12 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { AddEmployeeModal } from '../modals/AddEmployeeModal';
+import AttendanceActions from '../components/AttendanceActions';
 // --- Types ---
 export interface MonthlyAttendance {
   month: string;
-  oneTime: number;
-  late: number;
+  present: number;
+  weekOff: number;
   absent: number;
 }
 
@@ -53,7 +50,19 @@ export interface EmployeeAttendanceRecord {
   display_name?: string;
   profile_photo_url?: string | null;
   employee_code?: string;
-  daily_attendance: Record<number | string, 'present' | 'half_day' | 'late' | 'absent' | 'on_leave' | null>;
+  daily_attendance: Record<number | string, AttendanceCell | null>;
+}
+
+export interface AttendanceCell {
+  status: 'present' | 'half_day' | 'absent' | 'on_leave' | 'week_off' | 'holiday' | 'provider_unknown';
+  provider_status?: string | null;
+  shift_code?: string | null;
+  check_in_time?: string | null;
+  check_out_time?: string | null;
+  working_hours?: number | null;
+  overtime_hours?: number | null;
+  source?: string | null;
+  manual_override?: boolean;
 }
 
 interface AttendanceDashboardProps {
@@ -68,21 +77,15 @@ export default function AttendanceDashboard({
   const [formattedDate, setFormattedDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const m = new Date().getMonth() + 1;
     return String(m).padStart(2, '0');
   });
 
   const {token, roles} = useAuth();
-  const hasHrRole = roles.includes("hr");
-  console.log("Role hr :", hasHrRole);
+  const hasHrRole = roles.some((role) => ["hr", "hr_admin", "system_admin"].includes(role.toLowerCase()));
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
-
-  const handleOpenAddModal=()=>{
-     setIsModalOpen(true);
-  }
 
   // Fetching States
   const [employeesAttendanceList, setEmployeesAttendanceList] = useState<EmployeeAttendanceRecord[]>([]);
@@ -144,23 +147,24 @@ export default function AttendanceDashboard({
     }
 
     let totalPresent = 0;
-    let totalLate = 0;
+    let totalWeekOff = 0;
     let totalAbsent = 0;
     let totalRecords = 0;
 
     employeesAttendanceList.forEach((emp) => {
       if (emp.daily_attendance) {
-        Object.values(emp.daily_attendance).forEach((status) => {
+        Object.values(emp.daily_attendance).forEach((cell) => {
+          const status = cell?.status;
           if (status === 'present') totalPresent++;
-          else if (status === 'late') totalLate++;
           else if (status === 'absent' || status === 'on_leave') totalAbsent++;
+          else if (status === 'week_off' || status === 'holiday') totalWeekOff++;
           if (status) totalRecords++;
         });
       }
     });
 
     const presentPct = totalRecords ? Math.round((totalPresent / totalRecords) * 100) : 0;
-    const latePct = totalRecords ? Math.round((totalLate / totalRecords) * 100) : 0;
+    const weekOffPct = totalRecords ? Math.round((totalWeekOff / totalRecords) * 100) : 0;
     const absentPct = totalRecords ? Math.round((totalAbsent / totalRecords) * 100) : 0;
 
     const currentMonthLabel = new Date(
@@ -171,8 +175,8 @@ export default function AttendanceDashboard({
     const barData: MonthlyAttendance[] = [
       {
         month: currentMonthLabel,
-        oneTime: presentPct,
-        late: latePct,
+        present: presentPct,
+        weekOff: weekOffPct,
         absent: absentPct,
       },
     ];
@@ -213,15 +217,21 @@ export default function AttendanceDashboard({
   const daysInMonth = Array.from({ length: daysInMonthCount }, (_, i) => i + 1);
 
   // Status Icon Renderer
-  const renderStatusIcon = (status: 'present' | 'late' | 'absent' | 'on_leave'|'half_day' | null) => {
+  const renderStatusIcon = (cell: AttendanceCell | null) => {
+    const status = cell?.status;
+    const code = cell?.provider_status || (status === 'present' ? 'P' : status === 'absent' ? 'A' : status === 'week_off' ? 'WO' : status === 'holiday' ? 'H' : status === 'half_day' ? 'HD' : status === 'on_leave' ? 'L' : '-');
+    const title = [code, cell?.shift_code, cell?.check_in_time && `IN1 ${new Date(cell.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, cell?.check_out_time && `Out2 ${new Date(cell.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`].filter(Boolean).join(' · ');
     switch (status) {
       case 'present':
-        return <CheckCircle2 className="w-5 h-5 text-blue-500 fill-blue-50 shrink-0" />;
-      case 'late':
-        return <CheckCircle2 className="w-5 h-5 text-orange-500 fill-orange-50 shrink-0" />;
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-blue-50 px-1 py-0.5 text-[10px] font-bold text-blue-700">{code}</span>;
       case 'absent':
       case 'on_leave':
-        return <XCircle className="w-5 h-5 text-red-500 fill-red-50 shrink-0" />;
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-red-50 px-1 py-0.5 text-[10px] font-bold text-red-700">{code}</span>;
+      case 'week_off':
+      case 'holiday':
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-slate-100 px-1 py-0.5 text-[10px] font-bold text-slate-600">{code}</span>;
+      case 'half_day':
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-amber-50 px-1 py-0.5 text-[10px] font-bold text-amber-700">{code}</span>;
       default:
         return <span className="text-slate-300 font-light">-</span>;
     }
@@ -240,26 +250,13 @@ export default function AttendanceDashboard({
               Dashboard / <span className="text-slate-600">Attendance</span>
             </p>
           </div>
-          {hasHrRole && (
-             <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-xl text-sm transition-colors shadow-xs cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Add Employee
-          </button>
-          )}
         </div>
 
-        <AddEmployeeModal 
-           isOpen={isModalOpen}
-           onClose={()=>setIsModalOpen(false)}
-           onSuccess={()=>{
-              setIsModalOpen(false);
-              fetchAttendanceData();
-           } 
-           }
-           employeeToEdit={null}
+        <AttendanceActions
+          token={token}
+          employees={employeesAttendanceList}
+          canImport={hasHrRole}
+          onChanged={fetchAttendanceData}
         />
 
         {/* Charts Row */}
@@ -311,8 +308,8 @@ export default function AttendanceDashboard({
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="oneTime" stackId="a" fill="#3b82f6" />
-                    <Bar dataKey="late" stackId="a" fill="#f97316" />
+                    <Bar dataKey="present" stackId="a" fill="#3b82f6" />
+                    <Bar dataKey="weekOff" stackId="a" fill="#94a3b8" />
                     <Bar dataKey="absent" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -326,11 +323,11 @@ export default function AttendanceDashboard({
             <div className="flex items-center justify-center gap-6 mt-4 text-xs text-slate-600 font-medium">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-                One Time
+                Present (P)
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
-                Late
+                Week off / holiday
               </div>
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-slate-400"></span>
@@ -562,11 +559,7 @@ export default function AttendanceDashboard({
                             className="py-2.5 px-1 text-center align-middle"
                           >
                             <div className="flex items-center justify-center">
-                              {renderStatusIcon(
-                                emp.daily_attendance && emp.daily_attendance[day] !== undefined
-                                  ? emp.daily_attendance[day]
-                                  : null
-                              )}
+                              {renderStatusIcon(emp.daily_attendance?.[day] ?? null)}
                             </div>
                           </td>
                         ))}
