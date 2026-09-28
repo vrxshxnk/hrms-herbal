@@ -446,6 +446,76 @@ export const createLeaveRequestSchema = z.object({
 });
 
 
+export const exitStageStatusEnum = z.enum(["Pending", "Approved", "Rejected"]);
+export const exitFinalStatusEnum = z.enum([
+  "Submitted",
+  "Manager_Approved",
+  "HR_Approved",
+  "Clearance_In_Progress",
+  "Completed",
+  "Rejected",
+  "Withdrawn",
+]);
+export const clearanceDeptEnum = z.enum([
+  "IT",
+  "Finance",
+  "Admin",
+  "Store",
+]);
+export const clearanceStatusEnum = z.enum(["Pending", "Cleared", "Rejected"]);
+
+// --- 1. Employee Submits Resignation ---
+export const createResignationSchema = z.object({
+  proposed_last_working_day: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid proposed last working date format",
+  }),
+  reason: z
+    .string()
+    .min(10, { message: "Resignation reason must be at least 10 characters long" })
+    .max(1000),
+  notice_period_days: z.number().int().positive().default(30),
+  comments: z.string().optional(),
+});
+
+// --- 2. Manager Review Action ---
+export const managerReviewSchema = z.object({
+  resignation_id: z.string().uuid(),
+  status: z.enum(["Approved", "Rejected"]),
+  remarks: z.string().optional(),
+  proposed_last_working_day: z.string().optional(), // Manager can suggest an updated date
+});
+
+// --- 3. HR Processing Action ---
+export const hrReviewSchema = z.object({
+  resignation_id: z.string().uuid(),
+  status: z.enum(["Approved", "Rejected"]),
+  official_last_working_day: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Invalid official last working date format",
+  }),
+  notice_period_waived: z.boolean().default(false),
+  hr_remarks: z.string().optional(),
+});
+
+// --- 4. Department No-Dues Clearance Action ---
+export const updateResignationApprovalSchema = z.object({
+  requestId: z.string().uuid("Invalid resignation request ID"),
+  clearanceId: z.string().uuid("Invalid clearance ID").optional(),
+  stage: z.enum(["manager", "hr", "clearance", "department_lead"]),
+  status: z.enum(["Approved", "Rejected", "Cleared"]),
+  remarks: z.string().optional(),
+  officialLastWorkingDay: z.string().optional(),
+  noticePeriodWaived: z.boolean().optional(),
+  dueAmount: z.number().nonnegative().optional(),
+});
+// --- TypeScript Types ---
+export type CreateResignationInput = z.infer<typeof createResignationSchema>;
+export type ManagerReviewInput = z.infer<typeof managerReviewSchema>;
+export type HrReviewInput = z.infer<typeof hrReviewSchema>;
+export type UpdateDepartmentClearanceInput = z.infer<
+  typeof updateResignationApprovalSchema
+>;
+
+
 export type CreateLegalEntityInput = z.infer<typeof createLegalEntitySchema>;
 export type CreateBusinessUnitInput = z.infer<typeof createBusinessUnitSchema>;
 export type CreateDepartmentInput = z.infer<typeof createDepartmentSchema>;

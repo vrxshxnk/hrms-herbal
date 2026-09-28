@@ -129,6 +129,7 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   let createdKeycloakId: string | null = null;
+  let temporaryPassword: string| null =null; 
 
   try {
     const authUser = await getAuthenticatedUser(request);
@@ -149,13 +150,15 @@ export async function POST(request: Request) {
 
     const data = parsed.data;
     try {
-      createdKeycloakId = await createKeycloakUser({
+      const {keycloakId, generatedPassword}  = await createKeycloakUser({
         username: data.work_email,
         email: data.work_email,
         firstName: data.first_name,
         lastName: data.last_name,
         roleName: "employee",
       });
+      createdKeycloakId =  keycloakId;
+      temporaryPassword = generatedPassword; 
     } catch (kcError: any) {
       if (kcError.message?.startsWith("USER_EXISTS")) {
         return apiError(
@@ -295,7 +298,10 @@ export async function POST(request: Request) {
     });
 
     return ok(
-      createdEmployee,
+      {
+        ...createdEmployee,
+        temporary_password: temporaryPassword 
+      },
       { success: true, message: "successfully created the employee" },
       201,
     );

@@ -336,6 +336,67 @@ create table if not exists reimbursement_items (
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+-- 1. Enum Types for Exit Workflow Statuses
+create type exit_stage_status AS ENUM ('Pending', 'Approved', 'Rejected');
+create type  exit_final_status AS ENUM (
+  'Submitted', 
+  'Manager_Approved', 
+  'HR_Approved', 
+  'Clearance_In_Progress', 
+  'Completed', 
+  'Rejected',
+  'Withdrawn'
+);
+
+create type  clearance_status_enum AS ENUM ('Pending', 'Cleared', 'Rejected');
+-- 2. Resignation Requests Table
+create table if not exists  resignation_requests (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  
+  -- Resignation Details
+  resignation_date DATE NOT NULL DEFAULT CURRENT_DATE,
+  proposed_last_working_day DATE NOT NULL,
+  official_last_working_day DATE,
+  reason TEXT NOT NULL,
+  notice_period_days INT NOT NULL DEFAULT 30,
+  notice_period_waived BOOLEAN NOT NULL DEFAULT FALSE,
+  
+  -- Step 1: Manager Review
+  manager_status exit_stage_status NOT NULL DEFAULT 'Pending',
+  manager_remarks TEXT,
+  manager_reviewed_at TIMESTAMP WITH TIME ZONE,
+  manager_id UUID REFERENCES employees(id),
+
+  -- Step 2: HR Processing
+  hr_status exit_stage_status NOT NULL DEFAULT 'Pending',
+  hr_remarks TEXT,
+  hr_reviewed_at TIMESTAMP WITH TIME ZONE,
+  hr_id UUID REFERENCES employees(id),
+
+  -- Overall Lifecycle Tracking
+  final_status exit_final_status NOT NULL DEFAULT 'Submitted',
+
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Updated No-Dues Clearance Table using department_id
+create table if not exists no_dues_clearances (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  resignation_id UUID NOT NULL REFERENCES resignation_requests(id) ON DELETE CASCADE,
+  department_id UUID NOT NULL REFERENCES departments(id) ON DELETE CASCADE,
+  status clearance_status_enum NOT NULL DEFAULT 'Pending',
+  remarks TEXT,
+  due_amount NUMERIC(12, 2) DEFAULT 0.00,
+  cleared_by_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+  cleared_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+
+  -- Unique constraint using department_id
+  CONSTRAINT uq_resignation_department UNIQUE(resignation_id, department_id)
+);
 
 create table if not exists faq_queries(
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -443,6 +504,9 @@ CREATE INDEX IF NOT EXISTS idx_adv_salary_emp_id ON advance_salary_requests(empl
 CREATE INDEX IF NOT EXISTS idx_adv_salary_status ON advance_salary_requests(status);
 
 
-CREATE INDEX idx_reimb_emp_id ON reimbursement_requests(employee_id);
-CREATE INDEX idx_reimb_status ON reimbursement_requests(status);
-CREATE INDEX idx_reimb_items_req_id ON reimbursement_items(reimbursement_request_id);
+CREATE INDEX IF NOT EXISTS idx_reimb_emp_id ON reimbursement_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_reimb_status ON reimbursement_requests(status);
+CREATE INDEX IF NOT EXISTS idx_reimb_items_req_id ON reimbursement_items(reimbursement_request_id);
+CREATE INDEX IF NOT EXISTS idx_resignation_employee ON resignation_requests(employee_id);
+CREATE INDEX IF NOT EXISTS idx_resignation_status ON resignation_requests(final_status);
+CREATE INDEX IF NOT EXISTS idx_no_dues_resignation ON no_dues_clearances(resignation_id);

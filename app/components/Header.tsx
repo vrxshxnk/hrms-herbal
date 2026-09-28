@@ -12,7 +12,8 @@ import {
   Settings,
   LogOut,
   Banknote,
-  Receipt
+  Receipt,
+  UserMinus
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState } from "react";
@@ -113,9 +114,9 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
             </button>
 
-               {isUserOpen && (
-            <div
-              className="
+            {isUserOpen && (
+              <div
+                className="
                 absolute
                 right-0
                 top-11
@@ -129,85 +130,96 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 shadow-xl
                 overflow-hidden
               "
-            >
-              {/* User Info */}
-              <div className="px-4 py-3 border-b border-slate-100">
-                <div className="flex items-center gap-3">
-                  {/* Avatar */}
-                  <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
-                    <User className="w-5 h-5" />
+              >
+                {/* User Info */}
+                <div className="px-4 py-3 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    {/* Avatar */}
+                    <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
+                      <User className="w-5 h-5" />
 
-                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-                  </div>
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                    </div>
 
-                  {/* Name / Email */}
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-800 truncate">
-                      {capitalizeWords(user?.name)}
-                    </p>
+                    {/* Name / Email */}
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">
+                        {capitalizeWords(user?.name)}
+                      </p>
 
-                    <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                      {user?.email || ""}
-                    </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 truncate">
+                        {user?.email || ""}
+                      </p>
+                    </div>
                   </div>
                 </div>
+
+                {/* MENU */}
+                <div className="py-1">
+                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                    <User2 className="w-4 h-4" />
+                    <span>View Profile</span>
+                  </button>
+
+                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                    <CreditCard className="w-4 h-4" />
+                    <span>My Task</span>
+                  </button>
+
+                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                    <CircleHelp className="w-4 h-4" />
+                    <span>Help Center</span>
+                  </button>
+
+                  <Link
+                    href="/salary"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+                  >
+                    <Banknote className="w-4 h-4 " />
+                    <span>Advance Salary Request</span>
+                  </Link>
+
+                  {/* Reimbursement Request Link */}
+                  <Link
+                    href="/reimbursements"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+                  >
+                    <Receipt className="w-4 h-4 " />
+                    <span>Reimbursement Request</span>
+                  </Link>
+
+                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                    <Settings className="w-4 h-4" />
+                    <span>Account Settings</span>
+                  </button>
+
+                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                    <CreditCard className="w-4 h-4" />
+                    <span>Upgrade Plan</span>
+                  </button>
+                </div>
+
+                {/* LOGOUT */}
+                <div className="border-t border-slate-100 py-1">
+                  <button
+                    onClick={() => logout()}
+                    className="w-full flex cursor-pointer items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Log Out</span>
+                  </button>
+                </div>
+                <div className="border-t border-slate-100 py-1 ">
+                     <Link
+                  href="/resignation"
+                  className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
+                >
+                  <UserMinus className="w-4 h-4 " />
+                  <span>Resignation And Exit</span>
+                </Link>
+                </div>
               </div>
-
-              {/* MENU */}
-              <div className="py-1">
-       <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-    <User2 className="w-4 h-4" />
-    <span>View Profile</span>
-  </button>
-
-  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-    <CreditCard className="w-4 h-4" />
-    <span>My Task</span>
-  </button>
-
-  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-    <CircleHelp className="w-4 h-4" />
-    <span>Help Center</span>
-  </button>
-  
-  <Link 
-    href="/salary"
-    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
-  >
-    <Banknote className="w-4 h-4 " />
-    <span>Advance Salary Request</span>
-  </Link>
-
-  {/* Reimbursement Request Link */}
-  <Link 
-    href="/reimbursements"
-    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
-  >
-    <Receipt className="w-4 h-4 " />
-    <span>Reimbursement Request</span>
-  </Link>
-
-  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-    <Settings className="w-4 h-4" />
-    <span>Account Settings</span>
-  </button>
-
-  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-    <CreditCard className="w-4 h-4" />
-    <span>Upgrade Plan</span>
-  </button>
-</div>
-
-              {/* LOGOUT */}
-              <div className="border-t border-slate-100 py-1">
-                <button onClick={()=>logout()} className="w-full flex cursor-pointer items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors">
-                  <LogOut className="w-4 h-4" />
-                  <span>Log Out</span>
-                </button>
-              </div>
-            </div>
-          )}
-
+            )}
           </div>
         </div>
       </div>
