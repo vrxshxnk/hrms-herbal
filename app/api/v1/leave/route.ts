@@ -147,6 +147,49 @@ export async function POST(request: Request) {
       targetEmployeeId = empResult.rows[0].id;
     }
 
+    const isHalfDay = data.half_day_type ==='first_half' || data.half_day_type === 'second_half';
+    const totalDaysToDeduct= isHalfDay ? 0.5 :Number(data.total_days);
+
+    if(isHalfDay){
+       const startDate= new Date(data.start_date);
+       const reqYear = startDate.getFullYear();
+       const reqMonth = startDate.getMonth() + 1;
+       const monthCheck = await client.query(`
+            SELECT COUNT(*) AS count
+            FROM leave_requests 
+            WHERE employee_id = $1
+               AND half_day_type IN ('first_half', 'second_half')
+               AND status != 'Rejected'
+               AND EXTRACT(YEAR FROM start_date)=$2
+               AND EXTRACT(MONTH FROM start_date)= $3
+        `,[targetEmployeeId, reqYear, reqMonth]);
+
+      const monthlyHalfDays = parseInt(monthCheck.rows[0].count, 10);
+      if(monthlyHalfDays >= 2){
+        return apiError('VALIDATION_ERROR',"Maximum monthly limit of 2 half-days reached for this month !",400);
+      }
+      const yearCheck = await client.query(
+        `
+        SELECT COUNT(*) AS count
+        FROM leave_requests
+        WHERE employee_id = $1
+          AND half_day_type IN ('first_half', 'second_half')
+          AND status != 'Rejected'
+          AND EXTRACT(YEAR FROM start_date) = $2
+        `,
+        [targetEmployeeId, reqYear]
+      );
+
+      const yearlyHalfDays = parseInt(yearCheck.rows[0].count, 10);
+      if (yearlyHalfDays >= 24) {
+        return apiError(
+          "VALIDATION_ERROR",
+          "Maximum yearly limit of 24 half-days reached for this year.",
+          400
+        );
+      }
+    }
+    
     const newLeave = await withTranscations(async (txClient) => {
       const insertquery = `
         INSERT INTO leave_requests (
@@ -177,8 +220,8 @@ export async function POST(request: Request) {
         data.leave_code,
         data.start_date,
         data.end_date,
-        data.total_days,
-        data.half_day_type,
+        totalDaysToDeduct,
+        data.half_day_type || "full_day",
         data.status || "pending",
         data.reason || null,
       ];
