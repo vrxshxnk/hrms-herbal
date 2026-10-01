@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { AlertCircle, MessageSquareText } from "lucide-react";
+import { AlertCircle, MessageSquareText, RotateCcw, Eye } from "lucide-react";
+import { LeaveTrackModal, LeaveRequest } from "./LeaveTrackModal";
+
 interface EmployeeLeaveTableProps {
   data: any[];
   isLoading: boolean;
@@ -17,14 +19,13 @@ export default function EmployeeLeaveTable({
   const { user, roles, hasRole, token } = useAuth();
 
   const isHR =
-    hasRole("hr") ||
-    roles.includes("hr") ||
-    user?.system_role?.toLowerCase() === "hr";
+    hasRole("hr") || roles.includes("hr") || user?.system_role?.toLowerCase() === "hr";
   const isManager =
     hasRole("manager") ||
     roles.includes("manager") ||
     user?.system_role?.toLowerCase() === "manager";
   const hasActionRole = isHR || isManager;
+
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [balanceMap, setBalanceMap] = useState<Record<string, any[]>>({});
   const [rejectingLeaveId, setRejectingLeaveId] = useState<string | null>(null);
@@ -34,6 +35,9 @@ export default function EmployeeLeaveTable({
     name: string;
     reason: string;
   } | null>(null);
+
+  // Leave Tracking Modal State
+  const [trackingLeave, setTrackingLeave] = useState<LeaveRequest | null>(null);
 
   useEffect(() => {
     async function fetchBalances() {
@@ -76,7 +80,7 @@ export default function EmployeeLeaveTable({
 
   const handleStatusUpdate = async (
     id: string,
-    newStatus: "Approved" | "Rejected",
+    newStatus: "Approved" | "Rejected" | "Withdrawn",
     reason?: string,
   ) => {
     if (!id) {
@@ -109,6 +113,15 @@ export default function EmployeeLeaveTable({
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const handleWithdraw = async (id: string) => {
+    if (!id) return;
+    const confirmWithdraw = window.confirm(
+      "Are you sure you want to withdraw this leave request?",
+    );
+    if (!confirmWithdraw) return;
+    await handleStatusUpdate(id, "Withdrawn");
   };
 
   const handleConfirmReject = (e: React.FormEvent) => {
@@ -162,6 +175,15 @@ export default function EmployeeLeaveTable({
     return `${matched.remaining_leaves} / ${matched.total_leaves_avail}`;
   };
 
+  const visibleData = data.filter((row) => {
+    if (isHR) {
+      const managerStatus =
+        row.manager_approval_status ?? (row.reporting_manager_id ? "Pending" : "N/A");
+      return managerStatus === "Approved" || !row.reporting_manager_id;
+    }
+    return true;
+  });
+  console.log("tracking row rigth now :",trackingLeave);
   return (
     <>
       <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
@@ -199,22 +221,19 @@ export default function EmployeeLeaveTable({
                 <th className="py-3 px-4">End</th>
                 <th className="py-3 px-4 min-w-[180px]">Manager Approval</th>
                 <th className="py-3 px-4 min-w-[180px]">HR Status</th>
-                {hasActionRole && (
-                  <th className="py-3 px-4 text-center min-w-[150px]">
-                    Action
-                  </th>
-                )}
+                <th className="py-3 px-4 text-center min-w-[200px]">Action</th>
+                <th className="py-3 px-4 text-center min-w-[200px]">History</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 text-sm">
-              {data.length === 0 ? (
+              {visibleData.length === 0 ? (
                 <tr>
                   <td colSpan={10} className="text-center py-6 text-gray-500">
                     No leave requests found.
                   </td>
                 </tr>
               ) : (
-                data.map((row) => {
+                visibleData.map((row) => {
                   const leaveId = row.id || row.request_id;
 
                   const managerStatus =
@@ -227,6 +246,17 @@ export default function EmployeeLeaveTable({
 
                   const rejectionReason =
                     row.rejection_reason || row.manager_rejection_reason;
+                  const isOwnRequest =
+                    user?.sub === row.keycloak_id ||
+                    user?.id === row.employee_id ||
+                    (user?.email &&
+                      user?.email?.toLowerCase() ===
+                        row.employee_email?.toLowerCase());
+
+                  const canWithdraw =
+                    isOwnRequest &&
+                    row.status !== "Withdrawn" &&
+                    row.status !== "Rejected";
 
                   return (
                     <tr
@@ -320,7 +350,9 @@ export default function EmployeeLeaveTable({
                                 ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
                                 : row.status === "Rejected"
                                   ? "bg-rose-50 text-rose-600 border border-rose-200/60"
-                                  : "bg-amber-50 text-amber-600 border border-amber-200/60"
+                                  : row.status === "Withdrawn"
+                                    ? "bg-slate-100 text-slate-600 border border-slate-200"
+                                    : "bg-amber-50 text-amber-600 border border-amber-200/60"
                             }`}
                           >
                             {row.status}
@@ -347,41 +379,68 @@ export default function EmployeeLeaveTable({
                         </div>
                       </td>
 
-                      {/* ACTION BUTTONS */}
-                      {hasActionRole && (
-                        <td className="py-3 px-4 whitespace-nowrap text-center">
-                          <div className="flex items-center justify-center gap-2">
-                            {row.status !== "Approved" && (
-                              <button
-                                disabled={
-                                  updatingId === leaveId ||
-                                  (isHR && !canHrApprove)
-                                }
-                                title={
-                                  isHR && !canHrApprove
-                                    ? "Waiting for Manager Approval first"
-                                    : ""
-                                }
-                                onClick={() =>
-                                  handleStatusUpdate(leaveId, "Approved")
-                                }
-                                className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                Approve
-                              </button>
-                            )}
-                            {row.status !== "Rejected" && (
-                              <button
-                                disabled={updatingId === leaveId}
-                                onClick={() => openRejectModal(leaveId)}
-                                className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
-                              >
-                                Reject
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+                      <td className="py-3 px-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center gap-2">
+                        {hasActionRole && (
+                            <>
+                              {row.status !== "Approved" && row.status !== "Withdrawn" && (
+                                <button
+                                  disabled={
+                                    updatingId === leaveId ||
+                                    (isHR && !canHrApprove)
+                                  }
+                                  title={
+                                    isHR && !canHrApprove
+                                      ? "Waiting for Manager Approval first"
+                                      : ""
+                                  }
+                                  onClick={() =>
+                                    handleStatusUpdate(leaveId, "Approved")
+                                  }
+                                  className="px-2.5 py-1 text-xs font-medium text-emerald-700 bg-emerald-100 hover:bg-emerald-200 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                                >
+                                  Approve
+                                </button>
+                              )}
+                              {row.status !== "Rejected" && row.status !== "Withdrawn" && (
+                                <button
+                                  disabled={updatingId === leaveId}
+                                  onClick={() => openRejectModal(leaveId)}
+                                  className="px-2.5 py-1 text-xs font-medium text-rose-700 bg-rose-100 hover:bg-rose-200 rounded transition-colors disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              )}
+                            </>
+                          )}
+
+                          {canWithdraw && (
+                            <button
+                              disabled={updatingId === leaveId}
+                              onClick={() => handleWithdraw(leaveId)}
+                              className="px-2.5 py-1 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
+                              title="Withdraw leave request"
+                            >
+                              <RotateCcw className="w-3 h-3" />
+                              Withdraw
+                            </button>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-3 px-4 whitespace-nowrap text-center">
+                         <div className="flex items-center justify-center gap-2">
+                            <button
+                            type="button"
+                            onClick={() => setTrackingLeave(row)}
+                            className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors flex items-center gap-1"
+                            title="View tracking history"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            History
+                          </button>
+                         </div>
+                      </td>
                     </tr>
                   );
                 })
@@ -391,7 +450,7 @@ export default function EmployeeLeaveTable({
         </div>
 
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-sm text-gray-500">
-          <span>Showing 1 to {data.length} entries</span>
+          <span>Showing 1 to {visibleData.length} entries</span>
           <div className="flex items-center gap-1">
             <button className="px-3 py-1 rounded border bg-blue-600 text-white font-medium">
               1
@@ -400,7 +459,14 @@ export default function EmployeeLeaveTable({
         </div>
       </div>
 
-      {/* VIEW REASON MODAL */}
+   
+      <LeaveTrackModal
+        isOpen={!!trackingLeave}
+        onClose={() => setTrackingLeave(null)}
+        leave={trackingLeave}
+      />
+
+
       {viewingReason && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-100 animate-in fade-in zoom-in duration-150">
@@ -442,7 +508,6 @@ export default function EmployeeLeaveTable({
         </div>
       )}
 
-      {/* REJECTION REASON INPUT MODAL */}
       {rejectingLeaveId && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-gray-100 animate-in fade-in zoom-in duration-150">
@@ -460,43 +525,40 @@ export default function EmployeeLeaveTable({
             </div>
 
             <form onSubmit={handleConfirmReject} className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    <MessageSquareText className="w-4 h-4 text-rose-500" />
+                    Reason for Rejection
+                    <span className="text-rose-500">*</span>
+                  </label>
+                </div>
 
+                <div className="relative rounded-lg shadow-xs">
+                  <textarea
+                    rows={3}
+                    value={rejectionReasonInput}
+                    onChange={(e) => {
+                      setRejectionReasonInput(e.target.value);
+                      if (reasonError) setReasonError("");
+                    }}
+                    placeholder="Explain why this request is being rejected..."
+                    className={`w-full text-sm p-3 rounded-lg border transition-colors resize-none focus:outline-none ${
+                      reasonError
+                        ? "border-rose-300 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                        : "border-gray-200 hover:border-gray-300 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                    }`}
+                    autoFocus
+                  />
+                </div>
 
-
-<div className="space-y-2">
-  <div className="flex items-center justify-between">
-    <label className="flex items-center gap-1.5 text-xs font-semibold text-gray-700 uppercase tracking-wider">
-      <MessageSquareText className="w-4 h-4 text-rose-500" />
-      Reason for Rejection
-      <span className="text-rose-500">*</span>
-    </label>
-  </div>
-
-  <div className="relative rounded-lg shadow-xs">
-    <textarea
-      rows={3}
-      value={rejectionReasonInput}
-      onChange={(e) => {
-        setRejectionReasonInput(e.target.value);
-        if (reasonError) setReasonError("");
-      }}
-      placeholder="Explain why this request is being rejected..."
-      className={`w-full text-sm p-3 rounded-lg border transition-colors resize-none focus:outline-none ${
-        reasonError
-          ? "border-rose-300 bg-rose-50/20 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-          : "border-gray-200 hover:border-gray-300 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
-      }`}
-      autoFocus
-    />
-  </div>
-
-  {reasonError && (
-    <p className="flex items-center gap-1.5 text-xs text-rose-600 font-medium pt-0.5">
-      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
-      {reasonError}
-    </p>
-  )}
-</div>
+                {reasonError && (
+                  <p className="flex items-center gap-1.5 text-xs text-rose-600 font-medium pt-0.5">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                    {reasonError}
+                  </p>
+                )}
+              </div>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
                   type="button"

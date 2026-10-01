@@ -43,7 +43,6 @@ export default function LeavePage() {
   const totalRequests = leaveData.length;
   const pendingRequests = leaveData.filter((item) => item.status === "Pending" || item.status === "pending").length;
   const approvedRequests = leaveData.filter((item) => item.status === "Approved" || item.status === "approved").length;
-  const rejectedRequests = leaveData.filter((item) => item.status === "Rejected" || item.status === "rejected").length;
 
   const stats = [
     {
@@ -61,14 +60,6 @@ export default function LeavePage() {
       percentage: totalRequests ? Math.round((approvedRequests / totalRequests) * 100) : 0,
       textColor: "text-emerald-500",
       hexColor: "#10b981",
-    },
-    {
-      title: "Rejected Leaves",
-      value: rejectedRequests.toString(),
-      total: totalRequests.toString(),
-      percentage: totalRequests ? Math.round((rejectedRequests / totalRequests) * 100) : 0,
-      textColor: "text-rose-500",
-      hexColor: "#f43f5e",
     },
     {
       title: "Pending Requests",
@@ -106,7 +97,7 @@ export default function LeavePage() {
         onSuccess={fetchLeaveData}
       />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((stat, index) => (
           <div
             key={index}

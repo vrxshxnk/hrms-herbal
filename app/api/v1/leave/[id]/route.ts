@@ -1,42 +1,39 @@
 import { apiError, ok } from "@/app/lib/api/response";
-import { withTranscations } from "@/app/lib/api/client"; 
+import { withTranscations } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 
 export async function PATCH(
   request: Request,
-  props: { params: Promise<{ id: string }> }
+  props: { params: Promise<{ id: string }> },
 ) {
   try {
     const params = await props.params;
     const body = await request.json();
     const leaveId = params?.id || body.id;
 
-    // 1. Auth & Role Validation
+    // 1. Auth & Role Extraction
     const authuser = await getAuthenticatedUser(request);
     const isHR = authuser.roles.includes("hr");
     const isManager = authuser.roles.includes("manager");
 
-    if (!isHR && !isManager) {
-      return apiError(
-        "FORBIDDEN",
-        "Only Managers or HR can approve/reject leaves.",
-        403
-      );
-    }
-
     // 2. Normalize Payload Action
     const rawAction = body.action || body.status;
-    const computedAction = rawAction?.toLowerCase().includes("reject")
-      ? "reject"
-      : rawAction?.toLowerCase().includes("appr")
-      ? "approve"
-      : null;
+    const computedAction = rawAction?.toLowerCase().includes("withdraw")
+      ? "withdraw"
+      : rawAction?.toLowerCase().includes("reject")
+        ? "reject"
+        : rawAction?.toLowerCase().includes("appr")
+          ? "approve"
+          : null;
 
-    if (!leaveId || !["approve", "reject"].includes(computedAction!)) {
+    if (
+      !leaveId ||
+      !["approve", "reject", "withdraw"].includes(computedAction!)
+    ) {
       return apiError(
         "BAD_REQUEST",
-        "Invalid payload: 'id' and valid 'action' ('approve' or 'reject') are required!",
-        400
+        "Invalid payload: 'id' and valid 'action' ('approve', 'reject', or 'withdraw') are required!",
+        400,
       );
     }
 
@@ -44,70 +41,136 @@ export async function PATCH(
       return apiError(
         "BAD_REQUEST",
         "A rejection reason is required when rejecting!",
-        400
+        400,
+      );
+    }
+
+  
+    if (
+      ["approve", "reject"].includes(computedAction!) &&
+      !isHR &&
+      !isManager
+    ) {
+      return apiError(
+        "FORBIDDEN",
+        "Only Managers or HR can approve/reject leaves.",
+        403,
       );
     }
 
     // 3. Execute DB logic inside transaction
     const resultData = await withTranscations(async (client) => {
-      // Fetch Approver Employee UUID & Keycloak info
+      // Fetch Actor's Employee record & Keycloak ID mapping
       const empRes = await client.query(
-        `SELECT id, reporting_manager_id FROM employees WHERE keycloak_id = $1 LIMIT 1`,
-        [authuser.sub]
+        `SELECT id, keycloak_id, reporting_manager_id FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+        [authuser.sub],
       );
 
       if (empRes.rowCount === 0) {
-        throw { 
-          code: "NOT_FOUND", 
-          message: "Approver employee record not found in database.", 
-          status: 404 
+        throw {
+          code: "NOT_FOUND",
+          message: "Employee record not found in database.",
+          status: 404,
         };
       }
 
-      const approverEmployeeId = empRes.rows[0].id;
+      const actorEmployee = empRes.rows[0];
 
       // Fetch Target Leave Request Details & Employee's assigned Manager
       const leaveRes = await client.query(
         `SELECT 
+            lr.id,
             lr.employee_id, 
             lr.leave_type_id, 
             lr.total_days, 
             lr.start_date, 
             lr.status, 
             lr.manager_approval_status,
-            e.reporting_manager_id
+            e.reporting_manager_id,
+            e.keycloak_id AS owner_keycloak_id
          FROM leave_requests lr
          JOIN employees e ON lr.employee_id = e.id
          WHERE lr.id = $1 FOR UPDATE`,
-        [leaveId]
+        [leaveId],
       );
 
       if (leaveRes.rowCount === 0) {
-        throw { 
-          code: "NOT_FOUND", 
-          message: "Leave request record not found.", 
-          status: 404 
+        throw {
+          code: "NOT_FOUND",
+          message: "Leave request record not found.",
+          status: 404,
         };
       }
 
       const leaveRequest = leaveRes.rows[0];
-      const { 
-        employee_id, 
-        leave_type_id, 
-        total_days, 
-        start_date, 
-        status: currentStatus, 
+      const {
+        employee_id,
+        leave_type_id,
+        total_days,
+        start_date,
+        status: currentStatus,
         manager_approval_status,
-        reporting_manager_id 
+        reporting_manager_id,
+        owner_keycloak_id,
       } = leaveRequest;
 
       const reqYear = new Date(start_date).getFullYear();
 
-      // IF USER IS MANAGER (and NOT HR) OR HR is acting as Manager
+      // ==========================================
+      // ACTION 1: WITHDRAW LEAVE REQUEST
+      // ==========================================
+      if (computedAction === "withdraw") {
+        // Enforce ownership: Only request owner (or HR) can withdraw
+        const isOwner = owner_keycloak_id === authuser.sub;
+        if (!isOwner && !isHR) {
+          throw {
+            code: "FORBIDDEN",
+            message: "You can only withdraw your own leave requests.",
+            status: 403,
+          };
+        }
+
+        if (currentStatus === "Withdrawn") {
+          throw {
+            code: "BAD_REQUEST",
+            message: "Leave request has already been withdrawn.",
+            status: 400,
+          };
+        }
+
+        // Refund leave balance if leave was already Approved
+        if (currentStatus === "Approved") {
+          await client.query(
+            `UPDATE employee_leave_balances 
+             SET used_leaves = GREATEST(0, used_leaves - $1), updated_at = CURRENT_TIMESTAMP
+             WHERE employee_id = $2 AND leave_type_id = $3 AND year = $4`,
+            [total_days, employee_id, leave_type_id, reqYear],
+          );
+        }
+
+        const updateRes = await client.query(
+          `UPDATE leave_requests
+           SET 
+             status = 'Withdrawn',
+             manager_approval_status = 'Withdrawn',
+             updated_at = CURRENT_TIMESTAMP
+           WHERE id = $1
+           RETURNING *;`,
+          [leaveId],
+        );
+
+        return {
+          newStatus: "Withdrawn",
+          updatedRecord: updateRes.rows[0],
+        };
+      }
+
+      // ==========================================
+      // ACTION 2: MANAGER APPROVAL / REJECTION
+      // ==========================================
       if (isManager && !isHR) {
         const mgrStatus = computedAction === "reject" ? "Rejected" : "Approved";
-        
-        // Added explicit $1::varchar cast to prevent 42P08 PostgreSQL type ambiguity
+
         const updateRes = await client.query(
           `UPDATE leave_requests
            SET 
@@ -119,37 +182,47 @@ export async function PATCH(
              updated_at = CURRENT_TIMESTAMP
            WHERE id = $4
            RETURNING *;`,
-          [mgrStatus, approverEmployeeId, computedAction === "reject" ? body.rejection_reason : null, leaveId]
+          [
+            mgrStatus,
+            actorEmployee.id,
+            computedAction === "reject" ? body.rejection_reason : null,
+            leaveId,
+          ],
         );
 
         return {
           newStatus: mgrStatus,
-          updatedRecord: updateRes.rows[0]
+          updatedRecord: updateRes.rows[0],
         };
       }
 
-      // IF USER IS HR (Final Approval Gate)
+      // ==========================================
+      // ACTION 3: HR FINAL APPROVAL / REJECTION
+      // ==========================================
       if (isHR) {
-        // Enforce Workflow Rule: If employee has a manager assigned, manager MUST approve first!
         const requiresManager = Boolean(reporting_manager_id);
-        
-        if (computedAction === "approve" && requiresManager && manager_approval_status !== "Approved") {
+
+        if (
+          computedAction === "approve" &&
+          requiresManager &&
+          manager_approval_status !== "Approved"
+        ) {
           throw {
             code: "BAD_REQUEST",
-            message: "Cannot approve leave: Waiting for manager approval first.",
-            status: 400
+            message:
+              "Cannot approve leave: Waiting for manager approval first.",
+            status: 400,
           };
         }
 
         const newStatus = computedAction === "reject" ? "Rejected" : "Approved";
 
-        // Deduct balance on HR final approval
         if (computedAction === "approve" && currentStatus !== "Approved") {
           let balRes = await client.query(
             `SELECT total_leaves_avail, used_leaves 
              FROM employee_leave_balances 
              WHERE employee_id = $1 AND leave_type_id = $2 AND year = $3 FOR UPDATE`,
-            [employee_id, leave_type_id, reqYear]
+            [employee_id, leave_type_id, reqYear],
           );
 
           if (balRes.rowCount === 0) {
@@ -160,18 +233,19 @@ export async function PATCH(
                  ($1, $2, $3, 15.0, 1.5, 0.0)
                ON CONFLICT (employee_id, leave_type_id, year) DO UPDATE SET updated_at = CURRENT_TIMESTAMP
                RETURNING total_leaves_avail, used_leaves`,
-              [employee_id, leave_type_id, reqYear]
+              [employee_id, leave_type_id, reqYear],
             );
           }
 
           const { total_leaves_avail, used_leaves } = balRes.rows[0];
-          const remainingBalance = Number(total_leaves_avail) - Number(used_leaves);
+          const remainingBalance =
+            Number(total_leaves_avail) - Number(used_leaves);
 
           if (Number(total_days) > remainingBalance) {
             throw {
               code: "BAD_REQUEST",
               message: `Insufficient leave balance. Available: ${remainingBalance} days, Requested: ${total_days} days.`,
-              status: 400
+              status: 400,
             };
           }
 
@@ -179,16 +253,17 @@ export async function PATCH(
             `UPDATE employee_leave_balances 
              SET used_leaves = used_leaves + $1, updated_at = CURRENT_TIMESTAMP
              WHERE employee_id = $2 AND leave_type_id = $3 AND year = $4`,
-            [total_days, employee_id, leave_type_id, reqYear]
+            [total_days, employee_id, leave_type_id, reqYear],
           );
-        } 
-        // Restore balance if HR rejects previously approved leave
-        else if (computedAction === "reject" && currentStatus === "Approved") {
+        } else if (
+          computedAction === "reject" &&
+          currentStatus === "Approved"
+        ) {
           await client.query(
             `UPDATE employee_leave_balances 
              SET used_leaves = GREATEST(0, used_leaves - $1), updated_at = CURRENT_TIMESTAMP
              WHERE employee_id = $2 AND leave_type_id = $3 AND year = $4`,
-            [total_days, employee_id, leave_type_id, reqYear]
+            [total_days, employee_id, leave_type_id, reqYear],
           );
         }
 
@@ -202,12 +277,17 @@ export async function PATCH(
              updated_at = CURRENT_TIMESTAMP
            WHERE id = $4
            RETURNING *;`,
-          [newStatus, approverEmployeeId, computedAction === "reject" ? body.rejection_reason : null, leaveId]
+          [
+            newStatus,
+            actorEmployee.id,
+            computedAction === "reject" ? body.rejection_reason : null,
+            leaveId,
+          ],
         );
 
         return {
           newStatus,
-          updatedRecord: updateRes.rows[0]
+          updatedRecord: updateRes.rows[0],
         };
       }
 
@@ -218,12 +298,15 @@ export async function PATCH(
       message: `Leave request status updated to '${resultData.newStatus}'`,
       data: resultData.updatedRecord,
     });
-
   } catch (error: any) {
     console.error("Error updating leave request status:", error);
     if (error?.code && error?.message) {
       return apiError(error.code, error.message, error.status || 400);
     }
-    return apiError("INTERNAL_ERROR", "Failed to update leave request status", 500);
+    return apiError(
+      "INTERNAL_ERROR",
+      "Failed to update leave request status",
+      500,
+    );
   }
 }

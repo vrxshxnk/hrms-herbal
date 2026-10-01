@@ -58,6 +58,8 @@ export async function GET(request: Request) {
       SELECT 
         lr.id AS request_id,
         e.id AS employee_id,
+        e.keycloak_id,
+        e.work_email AS employee_email,
         e.reporting_manager_id,
         COALESCE(e.display_name, CONCAT(e.first_name, ' ', e.last_name)) AS employee_name,
         e.profile_photo_url,
