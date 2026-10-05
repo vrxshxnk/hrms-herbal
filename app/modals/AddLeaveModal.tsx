@@ -42,23 +42,36 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
 
   console.log("Is Manager?:", hasRole("manager"));
   console.log("Is HR?:", hasRole("hr"));
-  // const checkIfHrOrmanagerRole= roles.includes("hr" | "manager");
+
+  console.log("startdate", startDate);
+  console.log("endDate", endDate);
+
   const isHrOrManager = hasRole("hr") || hasRole("manager");
+
   const totalDays = useMemo(() => {
-    if (!startDate || !endDate) return 0;
-    if(leaveCode === 'HALF_DAY') return 0.5;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (end < start) return 0;
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  }, [startDate, endDate,leaveCode]);
+     if (!startDate || !endDate) return 0;
+     if (leaveCode === 'HALF_DAY') return 0.5;
+     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+     const start = new Date(startYear, startMonth - 1, startDay);
+     const end = new Date(endYear, endMonth - 1, endDay);
+     if (end < start) return 0;
+     let count = 0;
+     const current = new Date(start);
+     while (current <= end) {
+     if (current.getDay() !== 0) {
+      count++;
+     }
+     current.setDate(current.getDate() + 1);
+    }
+    return count;
+}, [startDate, endDate, leaveCode]);
 
 
   useEffect(() => {
   if (leaveCode === "HALF_DAY" && startDate) {
     setEndDate(startDate);
-  }
+   }
 }, [leaveCode, startDate]);
 
   useEffect(() => {
