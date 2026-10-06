@@ -17,9 +17,11 @@ import {
   Megaphone,
   Receipt,
   Network,
+  Sliders,
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 type SidebarProps = {
   isSidebarOpen: boolean;
@@ -28,6 +30,8 @@ type SidebarProps = {
 
 const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
   const [childComponents, setChildComponents] = useState<boolean>(false);
+  const {hasRole} = useAuth();
+  const isHr= hasRole("hr");
   return (
     <>
       <div
@@ -121,6 +125,16 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
                 <CalendarDays className="w-4 h-4" />
                 Leave
               </Link>
+
+              {isHr && (
+                <Link
+                  href="/leave/add"
+                  className="flex items-center gap-3 px-4 py-2 text-sm text-slate-700 hover:text-[#316AFF]"
+                >
+                  <Sliders className="w-4 h-4 text-[#316AFF]" />
+                  Allocate Leave
+                </Link>
+              )}
 
               <a
                 href="#"

@@ -154,3 +154,93 @@ export async function GET(request: Request) {
     client.release();
   }
 }
+
+
+
+
+export async function POST(request: Request) {
+  const client = await getPool().connect();
+  try {
+    const authuser = await getAuthenticatedUser(request);
+    const roles = authuser.roles || [];
+
+    if (!roles.includes("hr") && !roles.includes("admin")) {
+      return apiError("FORBIDDEN", "Only HR or Admin can manage leave balances.", 403);
+    }
+    const body = await request.json();
+    const { employee_id, leave_type_id, year, total_leaves_avail, monthly_limit } = body;
+    if (!employee_id || !leave_type_id) {
+      return apiError("BAD_REQUEST", "Employee ID and Leave Type ID are required.", 400);
+    }
+    const targetYear = year || new Date().getFullYear();
+    const totalAvail = total_leaves_avail ?? 15.0;
+    const monthLimit = monthly_limit ?? 1.5;
+    const upsertQuery = `
+      INSERT INTO employee_leave_balances (
+        employee_id,
+        leave_type_id,
+        year,
+        total_leaves_avail,
+        monthly_limit,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+      ON CONFLICT (employee_id, leave_type_id, year)
+      DO UPDATE SET
+        total_leaves_avail = EXCLUDED.total_leaves_avail,
+        monthly_limit = EXCLUDED.monthly_limit,
+        updated_at = CURRENT_TIMESTAMP
+      RETURNING *;
+    `;
+
+    if (employee_id === "UNIVERSAL") {
+      await client.query("BEGIN");
+      const employeesResult = await client.query(`SELECT id FROM employees`);
+      const allEmployeeIds: string[] = employeesResult.rows.map((row) => row.id);
+      if (allEmployeeIds.length === 0) {
+        await client.query("ROLLBACK");
+        return apiError("NOT_FOUND", "No employees found to allocate balances to.", 444);
+      }
+
+      const upsertPromises = allEmployeeIds.map((empId) =>
+        client.query(upsertQuery, [
+          empId,
+          leave_type_id,
+          targetYear,
+          totalAvail,
+          monthLimit,
+        ])
+      );
+
+      const results = await Promise.all(upsertPromises);
+      await client.query("COMMIT");
+
+      return ok({
+        message: `Leave balance successfully updated for all ${allEmployeeIds.length} employees.`,
+        data: {
+          affected_count: results.length,
+          updated_records: results.map((r) => r.rows[0]),
+        },
+      });
+    }
+
+    const result = await client.query(upsertQuery, [
+      employee_id,
+      leave_type_id,
+      targetYear,
+      totalAvail,
+      monthLimit,
+    ]);
+
+    return ok({
+      message: "Leave balance successfully updated.",
+      data: result.rows[0],
+    });
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    console.error("Error upserting leave balance:", error);
+    return apiError("INTERNAL_ERROR", "Failed to allocate leave balance", 500);
+  } finally {
+    client.release();
+  }
+}
