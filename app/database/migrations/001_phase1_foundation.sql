@@ -129,14 +129,15 @@ create table if not exists tasks (
     updated_at timestamp with time zone default current_timestamp
 );
 
-create table if not exists notifications(
+create table if not exists notifications (
     id uuid primary key default gen_random_uuid(),
     recipient_id uuid not null references employees(id) on delete cascade,
     title varchar(200) not null,
     message text not null,
-    type varchar(50) default 'task_assigned',
+    type varchar(50) default 'general', 
+    reference_id uuid,               
+    reference_type varchar(50),     
     is_read boolean default false,
-    reference_id uuid references tasks(id) on delete cascade,
     created_at timestamp with time zone default current_timestamp
 );
 
@@ -491,7 +492,7 @@ create table if not exists employee_documents (
 CREATE INDEX IF NOT EXISTS idx_emp_docs_employee_id ON employee_documents(employee_id);
 CREATE INDEX IF NOT EXISTS idx_emp_docs_category ON employee_documents(category);
 CREATE INDEX IF NOT EXISTS idx_emp_docs_status ON employee_documents(status);
-
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_unread ON notifications (recipient_id, is_read, created_at desc);
 
 CREATE INDEX IF NOT EXISTS idx_leave_requests_emp_id ON leave_requests(employee_id);
 CREATE INDEX IF NOT EXISTS idx_leave_requests_status ON leave_requests(status);

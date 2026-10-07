@@ -1,6 +1,7 @@
 import { apiError, ok } from "@/app/lib/api/response";
 import { withTranscations } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
+import { createNotification } from "@/app/lib/api/notifications";
 
 export async function PATCH(
   request: Request,
@@ -45,7 +46,7 @@ export async function PATCH(
       );
     }
 
-  
+
     if (
       ["approve", "reject"].includes(computedAction!) &&
       !isHR &&
@@ -62,7 +63,7 @@ export async function PATCH(
     const resultData = await withTranscations(async (client) => {
       // Fetch Actor's Employee record & Keycloak ID mapping
       const empRes = await client.query(
-        `SELECT id, keycloak_id, reporting_manager_id FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+        `SELECT id, keycloak_id, reporting_manager_id, COALESCE(display_name, CONCAT(first_name, ' ', last_name)) AS name FROM employees WHERE keycloak_id = $1 LIMIT 1`,
         [authuser.sub],
       );
 
@@ -87,9 +88,11 @@ export async function PATCH(
             lr.status, 
             lr.manager_approval_status,
             e.reporting_manager_id,
-            e.keycloak_id AS owner_keycloak_id
+            e.keycloak_id AS owner_keycloak_id,
+            lt.name AS leave_type_name
          FROM leave_requests lr
          JOIN employees e ON lr.employee_id = e.id
+         JOIN leave_types lt ON lr.leave_type_id = lt.id
          WHERE lr.id = $1 FOR UPDATE`,
         [leaveId],
       );
@@ -112,6 +115,7 @@ export async function PATCH(
         manager_approval_status,
         reporting_manager_id,
         owner_keycloak_id,
+        leave_type_name,
       } = leaveRequest;
 
       const reqYear = new Date(start_date).getFullYear();
@@ -120,7 +124,6 @@ export async function PATCH(
       // ACTION 1: WITHDRAW LEAVE REQUEST
       // ==========================================
       if (computedAction === "withdraw") {
-        // Enforce ownership: Only request owner (or HR) can withdraw
         const isOwner = owner_keycloak_id === authuser.sub;
         if (!isOwner && !isHR) {
           throw {
@@ -138,7 +141,6 @@ export async function PATCH(
           };
         }
 
-        // Refund leave balance if leave was already Approved
         if (currentStatus === "Approved") {
           await client.query(
             `UPDATE employee_leave_balances 
@@ -158,6 +160,18 @@ export async function PATCH(
            RETURNING *;`,
           [leaveId],
         );
+
+        // Notify Reporting Manager if withdrawn
+        if (reporting_manager_id) {
+          await createNotification(client, {
+            recipientId: reporting_manager_id,
+            title: "Leave Request Withdrawn",
+            message: `${actorEmployee.name} has withdrawn their ${leave_type_name} request for ${total_days} day(s).`,
+            type: "leave_withdrawn",
+            referenceId: leaveId,
+            referenceType: "leave_requests",
+          });
+        }
 
         return {
           newStatus: "Withdrawn",
@@ -189,6 +203,19 @@ export async function PATCH(
             leaveId,
           ],
         );
+
+        // Notify requesting employee
+        await createNotification(client, {
+          recipientId: employee_id,
+          title: `Leave Request Manager ${mgrStatus}`,
+          message:
+            computedAction === "reject"
+              ? `Your manager ${actorEmployee.name} rejected your leave request (${leave_type_name}). Reason: ${body.rejection_reason}`
+              : `Your manager ${actorEmployee.name} approved your leave request (${leave_type_name}). Pending HR approval.`,
+          type: computedAction === "reject" ? "leave_rejected" : "leave_manager_approved",
+          referenceId: leaveId,
+          referenceType: "leave_requests",
+        });
 
         return {
           newStatus: mgrStatus,
@@ -284,6 +311,19 @@ export async function PATCH(
             leaveId,
           ],
         );
+
+        // Notify requesting employee of final HR status
+        await createNotification(client, {
+          recipientId: employee_id,
+          title: `Leave Request ${newStatus}`,
+          message:
+            computedAction === "reject"
+              ? `Your leave request for ${leave_type_name} was rejected by HR. Reason: ${body.rejection_reason}`
+              : `Your leave request for ${leave_type_name} (${total_days} days) starting ${start_date} has been fully approved.`,
+          type: computedAction === "reject" ? "leave_rejected" : "leave_approved",
+          referenceId: leaveId,
+          referenceType: "leave_requests",
+        });
 
         return {
           newStatus,
