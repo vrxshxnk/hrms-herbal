@@ -1,4 +1,5 @@
 import { getPool, withTranscations } from "@/app/lib/api/client";
+import { createNotification } from "@/app/lib/api/notifications";
 import { apiError, ok } from "@/app/lib/api/response";
 import { parseJson } from "@/app/lib/api/validation";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
@@ -136,13 +137,28 @@ const patchStrategies = {
         )
       RETURNING *; 
     `;
-    return client.query(query, [
+    const res= await client.query(query, [
       status,
       remarks || null,
       requestID,
       actorID,
       nextStatus,
     ]);
+    const updatedRecord= res.rows[0];
+    if(updatedRecord){
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title: `Reimbursement Manager ${status}`,
+        message:
+          status === "Rejected"
+            ? `Your reimbursement request was rejected by your manager. Remarks: ${remarks || "None"}`
+            : `Your reimbursement request for ₹${updatedRecord.total_amount} was approved by manager. Pending HR approval.`,
+        type: status === "Rejected" ? "reimbursement_manager_rejected" : "reimbursement_manager_approved",
+        referenceId: requestID,
+        referenceType: "reimbursement_requests",
+      });
+    }
+    return res; 
   },
 
   "reimburse:approve:hr": async (
@@ -168,12 +184,27 @@ const patchStrategies = {
       WHERE id = $3 AND manager_status = 'Approved'
       RETURNING *;   
     `;
-    return client.query(query, [
+     const res = await client.query(query, [
       status,
       remarks || null,
       requestID,
       nextStatus,
     ]);
+    const updatedRecord = res.rows[0];
+    if (updatedRecord) {
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title: `Reimbursement HR ${status}`,
+        message:
+          status === "Rejected"
+            ? `Your reimbursement request was rejected by HR. Remarks: ${remarks || "None"}`
+            : `Your reimbursement request for ₹${updatedRecord.total_amount} was approved by HR. Pending Finance processing.`,
+        type: status === "Rejected" ? "reimbursement_hr_rejected" : "reimbursement_hr_approved",
+        referenceId: requestID,
+        referenceType: "reimbursement_requests",
+      });
+    }
+    return res; 
   },
 
   "reimburse:approve:finance": async (
@@ -202,13 +233,28 @@ const patchStrategies = {
       WHERE id = $4 AND hr_status = 'Approved' 
       RETURNING *;
     `;
-    return client.query(query, [
+    const res= await client.query(query, [
       status,
       remarks || null,
       txnRef,
       requestID,
       nextStatus,
     ]);
+    const updatedRecord = res.rows[0];
+    if (updatedRecord) {
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title: status === "Disbursed" || status === "Approved" ? "Reimbursement Processed" : "Reimbursement Rejected",
+        message:
+          status === "Disbursed" || status === "Approved"
+            ? `Your reimbursement claim of ₹${updatedRecord.total_amount} has been processed. Ref: ${txnRef || "N/A"}`
+            : `Your reimbursement request was rejected by Finance. Remarks: ${remarks || "None"}`,
+        type: status === "Rejected" ? "reimbursement_finance_rejected" : "reimbursement_processed",
+        referenceId: requestID,
+        referenceType: "reimbursement_requests",
+      });
+    }
+    return res; 
   },
 };
 
@@ -289,7 +335,7 @@ export async function POST(request: Request) {
     const { title, description, tripStartDate, tripEndDate, currency, items } = parsed.data;
     const result = await withTranscations(async (client) => {
       const empRes = await client.query(
-        `SELECT id, status FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+        `SELECT id, status,reporting_manager_id,COALESCE(display_name,CONCAT(first_name,' ',last_name)) AS employee_name FROM employees WHERE keycloak_id = $1 LIMIT 1`,
         [authUser.sub],
       );
 
@@ -362,6 +408,17 @@ export async function POST(request: Request) {
         ]);
         insertedItems.push(itemRes.rows[0]);
       }
+
+        if (employee.reporting_manager_id) {
+          await createNotification(client, {
+            recipientId: employee.reporting_manager_id,
+            title: "New Reimbuersement Request ",
+            message: `${employee.employee_name} has requested a reimbursement request of  ₹${totalAmount}.`,
+            type: "reimbursement_requests",
+            referenceId: parentRequest.id,
+            referenceType: "reimbursement_requests",
+          });
+        }
       return {
         ...parentRequest,
         items: insertedItems,
