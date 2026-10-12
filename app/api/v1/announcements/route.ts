@@ -7,6 +7,7 @@ import { apiError, ok } from "@/app/lib/api/response";
 import { parseJson } from "@/app/lib/api/validation";
 import { getDBUserProfile } from "@/app/lib/auth/user-profile";
 import { createAnnouncementSchema } from "@/app/validations/phase1_schema";
+import { createNotification } from "@/app/lib/api/notifications";
 
 const announcementStrategies = {
   // 1. HR / System Admin / Super Admin: Reads ALL announcements (published, draft, or expired)
@@ -68,17 +69,13 @@ export async function GET(request: Request) {
     if (!user) {
       return apiError("UNAUTHORIZED", "User profile not found or inactive", 401);
     }
-
     let strategyFn: (user: any) => { query: string; params: any[] };
-
     if (user.system_role === "hr" || user.system_role === "hr_admin" || user.system_role === "system_admin") {
       strategyFn = announcementStrategies["announcement:read:all"];
     } else {
       strategyFn = announcementStrategies["announcement:read:scoped"];
     }
-
     const { query, params } = strategyFn(user);
-
     const client = await getPool().connect();
     try {
       const result = await client.query(query, params);
@@ -151,9 +148,41 @@ export async function POST(request: Request) {
         data.expires_at || null,
         data.is_published ?? true,
       ];
-
       const res = await client.query(insertQuery, values);
-      return res.rows[0];
+      const createdAnnouncement= res.rows[0];
+  
+      if (createdAnnouncement.is_published) {
+        const targetAudienceQuery = `
+          SELECT id FROM employees 
+          WHERE status = 'active'
+            AND id != $1
+            AND (
+              ($2::uuid IS NULL AND $3::uuid IS NULL AND $4::uuid IS NULL)
+              OR ($2::uuid IS NOT NULL AND department_id = $2)
+              OR ($3::uuid IS NOT NULL AND location_id = $3)
+              OR ($4::uuid IS NOT NULL AND legal_entity_id = $4)
+            )
+        `;
+
+        const targetRes = await client.query(targetAudienceQuery, [
+          user.id,
+          targetDept,
+          targetLoc,
+          targetEntity,
+        ]);
+
+        for (const recipient of targetRes.rows) {
+          await createNotification(client, {
+            recipientId: recipient.id,
+            title: `New Announcement: ${data.title}`,
+            message: data.content.length > 100 ? `${data.content.substring(0, 100)}...` : data.content,
+            type: "announcement_published",
+            referenceId: createdAnnouncement.id,
+            referenceType: "announcements",
+          });
+        }
+      }
+      return createdAnnouncement;
     });
 
     return ok({ data: newAnnouncement, success: true });

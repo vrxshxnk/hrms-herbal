@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 type AddEmployeeModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (data?: any) => void | Promise<void>;
   employeeToEdit?: Employee | null;
 };
 
@@ -88,7 +88,7 @@ export const AddEmployeeModal = ({
       try {
         const res = await fetch(
           `/api/v1/designation?department_id=${formData.department_id}`,
-          { headers: { Authorization: `Bearer ${token}` } },
+          { headers: { Authorization: `Bearer ${token}` } }
         );
         const result = await res.json();
         if (result.data.data && result.data.success) {
@@ -133,7 +133,7 @@ export const AddEmployeeModal = ({
   if (!isOpen) return null;
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -193,17 +193,25 @@ export const AddEmployeeModal = ({
       if (res.ok && (result.meta?.success || result.success)) {
         setSuccessMsg(
           result.meta?.message ||
-            `Employee ${isEditMode ? "updated" : "created"} successfully`,
+            `Employee ${isEditMode ? "updated" : "created"} successfully`
         );
-        await onSuccess();
-        setTimeout(() => {
+
+        if (isEditMode) {
+          await onSuccess();
+          setTimeout(() => {
+            onClose();
+            setSuccessMsg(null);
+          }, 1200);
+        } else {
+          const createdData = result.data || result;
+          await onSuccess(createdData);
           onClose();
           setSuccessMsg(null);
-        }, 1200);
+        }
       } else {
         setErrorMsg(
           result.message ||
-            `Failed to ${isEditMode ? "update" : "create"} employee`,
+            `Failed to ${isEditMode ? "update" : "create"} employee`
         );
       }
     } catch (err) {
@@ -394,10 +402,10 @@ export const AddEmployeeModal = ({
                 {!formData.department_id
                   ? "Select Department First"
                   : loadingDesignations
-                    ? "Loading designations..."
-                    : designations.length === 0
-                      ? "No designations found"
-                      : "Select Designation"}
+                  ? "Loading designations..."
+                  : designations.length === 0
+                  ? "No designations found"
+                  : "Select Designation"}
               </option>
               {designations.map((desg) => (
                 <option key={desg.id} value={desg.id}>
@@ -436,8 +444,8 @@ export const AddEmployeeModal = ({
                   ? "Updating..."
                   : "Saving..."
                 : isEditMode
-                  ? "Update Employee"
-                  : "Save Employee"}
+                ? "Update Employee"
+                : "Save Employee"}
             </button>
           </div>
         </form>

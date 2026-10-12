@@ -1,5 +1,5 @@
 "use client";
-
+import { Sun,Moon } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
@@ -21,12 +21,14 @@ const LEAVE_TYPES = [
   { code: "SICK", name: "Sick Leave" },
   { code: "MATERNITY", name: "Maternity Leave" },
   { code: "PATERNITY", name: "Paternity Leave" },
+  {code :"HALF_DAY", name:"Half Day Leave"}
 ];
 
 const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [leaveCode, setLeaveCode] = useState<string>("");
+  const [halfDayType, setHalfDayType] = useState<"full_day" | "first_half"|"second_half">("first_half");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [reason, setReason] = useState<string>("");
@@ -40,16 +42,37 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
 
   console.log("Is Manager?:", hasRole("manager"));
   console.log("Is HR?:", hasRole("hr"));
-  // const checkIfHrOrmanagerRole= roles.includes("hr" | "manager");
+
+  console.log("startdate", startDate);
+  console.log("endDate", endDate);
+
   const isHrOrManager = hasRole("hr") || hasRole("manager");
+
   const totalDays = useMemo(() => {
-    if (!startDate || !endDate) return 0;
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    if (end < start) return 0;
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-  }, [startDate, endDate]);
+     if (!startDate || !endDate) return 0;
+     if (leaveCode === 'HALF_DAY') return 0.5;
+     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
+     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
+     const start = new Date(startYear, startMonth - 1, startDay);
+     const end = new Date(endYear, endMonth - 1, endDay);
+     if (end < start) return 0;
+     let count = 0;
+     const current = new Date(start);
+     while (current <= end) {
+     if (current.getDay() !== 0) {
+      count++;
+     }
+     current.setDate(current.getDate() + 1);
+    }
+    return count;
+}, [startDate, endDate, leaveCode]);
+
+
+  useEffect(() => {
+  if (leaveCode === "HALF_DAY" && startDate) {
+    setEndDate(startDate);
+   }
+}, [leaveCode, startDate]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -87,6 +110,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
     setEndDate("");
     setReason("");
     setStatus("Pending");
+    setHalfDayType("first_half");
     setErrorMessage(null);
   };
 
@@ -108,9 +132,9 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
         employee_id: selectedEmployeeId,
         leave_code: leaveCode,
         start_date: startDate,
-        end_date: endDate,
+        end_date: leaveCode === "HALF_DAY" ? startDate: endDate,
         total_days: totalDays,
-        half_day_type: "full_day",
+        half_day_type:leaveCode === "HALF_DAY" ? halfDayType : "full_day",
         status: status,
         reason: reason.trim() || null,
       };
@@ -213,6 +237,86 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 </option>
               ))}
             </select>
+
+            {/* Half-Day Shift Selection (Shown only when HALF_DAY is selected) */}
+            {leaveCode === "HALF_DAY" && (
+              <div className="p-3 bg-slate-50 mt-2 border border-slate-200/80 rounded-xl space-y-2">
+                <label className="block text-xs font-semibold text-slate-500 tracking-wider">
+                  Half Day Shift *
+                </label>
+                <div className="grid grid-cols-2 gap-2 pt-1">
+                  {/* First Half Option */}
+                  <button
+                    type="button"
+                    onClick={() => setHalfDayType("first_half")}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                      halfDayType === "first_half"
+                        ? "border-[#10b981] bg-emerald-50/60 text-[#10b981] shadow-sm font-medium"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div
+                      className={`p-1.5 rounded-lg ${
+                        halfDayType === "first_half"
+                          ? "bg-[#10b981] text-white"
+                          : "bg-amber-100 text-amber-600"
+                      }`}
+                    >
+                      <Sun className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold leading-none">
+                        First Half
+                      </span>
+                      <span
+                        className={`text-[10px] mt-0.5 ${
+                          halfDayType === "first_half"
+                            ? "text-emerald-700"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        Morning
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Second Half Option */}
+                  <button
+                    type="button"
+                    onClick={() => setHalfDayType("second_half")}
+                    className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
+                      halfDayType === "second_half"
+                        ? "border-[#10b981] bg-emerald-50/60 text-[#10b981] shadow-sm font-medium"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                    }`}
+                  >
+                    <div
+                      className={`p-1.5 rounded-lg ${
+                        halfDayType === "second_half"
+                          ? "bg-[#10b981] text-white"
+                          : "bg-indigo-100 text-indigo-600"
+                      }`}
+                    >
+                      <Moon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold leading-none">
+                        Second Half
+                      </span>
+                      <span
+                        className={`text-[10px] mt-0.5 ${
+                          halfDayType === "second_half"
+                            ? "text-emerald-700"
+                            : "text-slate-400"
+                        }`}
+                      >
+                        Afternoon
+                      </span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -237,10 +341,10 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               <input
                 type="date"
                 name="end_date"
-                value={endDate}
+                value={leaveCode === "HALF_DAY" ? startDate : endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
-                disabled={submitting}
+                disabled={submitting || leaveCode === "HALF_DAY"}
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
               />
             </div>

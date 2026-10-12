@@ -3,7 +3,7 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 import { parseJson } from "@/app/lib/api/validation";
 import { advanceSalarySchema } from "@/app/validations/phase1_schema";
-
+import { createNotification } from "@/app/lib/api/notifications";
 
 // 1. Define Strategy Map for Salary Requests
 const salaryStrategies = {
@@ -84,7 +84,25 @@ const patchStrategies = {
         )
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, requestId, actorId,nextStatus]);
+    const res=  await client.query(query, [status, remarks, requestId, actorId,nextStatus]);
+    const updatedRecord = res.rows[0];
+    if (updatedRecord) {
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title: `Advance Salary Manager ${upperStatus}`,
+        message:
+          upperStatus === "REJECTED"
+            ? `Your advance salary request was rejected by your manager. Remarks: ${remarks || "None"}`
+            : `Your advance salary request for ₹${updatedRecord.amount_requested} was approved by manager. Pending HR approval.`,
+        type:
+          upperStatus === "REJECTED"
+            ? "salary_manager_rejected"
+            : "salary_manager_approved",
+        referenceId: requestId,
+        referenceType: "advance_salary_requests",
+      });
+    }
+    return res;
   },
 
   // HR APPROVAL STRATEGY
@@ -106,7 +124,25 @@ const patchStrategies = {
       WHERE id = $3 AND manager_status = 'Approved'
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, requestId, nextStatus]);
+    const res =await client.query(query, [status, remarks, requestId, nextStatus]);
+    const updatedRecord = res.rows[0];
+    if (updatedRecord) {
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title: `Advance Salary HR ${upperStatus}`,
+        message:
+          upperStatus === "REJECTED"
+            ? `Your advance salary request was rejected by HR. Remarks: ${remarks || "None"}`
+            : `Your advance salary request for ₹${updatedRecord.amount_requested} was approved by HR. Pending Finance disbursement.`,
+        type:
+          upperStatus === "REJECTED"
+            ? "salary_hr_rejected"
+            : "salary_hr_approved",
+        referenceId: requestId,
+        referenceType: "advance_salary_requests",
+      });
+    }
+    return res; 
   },
 
   // FINANCE DISBURSEMENT STRATEGY
@@ -129,7 +165,27 @@ const patchStrategies = {
       WHERE id = $4 AND hr_status = 'Approved'
       RETURNING *;
     `;
-    return client.query(query, [status, remarks, disbursementTxnId, requestId, nextStatus]);
+    const res= await client.query(query, [status, remarks, disbursementTxnId, requestId, nextStatus]);
+    const updatedRecord = res.rows[0];
+    if (updatedRecord) {
+      await createNotification(client, {
+        recipientId: updatedRecord.employee_id,
+        title:
+          upperStatus === "DISBURSED"
+            ? "Advance Salary Disbursed"
+            : "Advance Salary Rejected",
+        message:
+          upperStatus === "DISBURSED"
+            ? `Your advance salary of ₹${updatedRecord.amount_requested} has been disbursed. Txn Ref: ${disbursementTxnId || "N/A"}`
+            : `Your advance salary request was rejected by Finance. Remarks: ${remarks || "None"}`,
+        type:
+          upperStatus === "DISBURSED"
+            ? "salary_disbursed"
+            : "salary_finance_rejected",
+        referenceId: requestId,
+        referenceType: "advance_salary_requests",
+      });
+    }
   },
 };
 
@@ -267,7 +323,7 @@ export async function POST(request: Request) {
 
     const advanceSalaryReq = await withTranscations(async (client) => {
       const empRes = await client.query(
-        `SELECT id, status FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+        `SELECT id, status, reporting_manager_id, COALESCE(display_name,CONCAT(first_name,' ',last_name)) AS employee_name FROM employees WHERE keycloak_id = $1 LIMIT 1`,
         [authUser.sub]
       );
 
@@ -314,6 +370,17 @@ export async function POST(request: Request) {
       ];
 
       const res = await client.query(insertQuery, values);
+      const createdRequest = res.rows[0];
+      if (employee.reporting_manager_id) {
+        await createNotification(client, {
+          recipientId: employee.reporting_manager_id,
+          title: "New Advance Salary Request",
+          message: `${employee.employee_name} has requested an advance salary of ₹${data.amountRequested}.`,
+          type: "salary_advance_requested",
+          referenceId: createdRequest.id,
+          referenceType: "advance_salary_requests",
+        });
+      }
       return res.rows[0];
     });
 

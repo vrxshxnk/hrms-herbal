@@ -3,6 +3,7 @@ import { apiError, ok } from "@/app/lib/api/response";
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { createLeaveRequestSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
+import { createNotification } from "@/app/lib/api/notifications";
 
 export async function GET(request: Request) {
   const client = await getPool().connect();
@@ -58,6 +59,8 @@ export async function GET(request: Request) {
       SELECT 
         lr.id AS request_id,
         e.id AS employee_id,
+        e.keycloak_id,
+        e.work_email AS employee_email,
         e.reporting_manager_id,
         COALESCE(e.display_name, CONCAT(e.first_name, ' ', e.last_name)) AS employee_name,
         e.profile_photo_url,
@@ -147,8 +150,57 @@ export async function POST(request: Request) {
       targetEmployeeId = empResult.rows[0].id;
     }
 
+    const isHalfDay =data.half_day_type === "first_half" || data.half_day_type === "second_half";
+    const totalDaysToDeduct= isHalfDay ? 0.5 : Number(data.total_days);
+
+    if(isHalfDay){
+      const startDate= new Date(data.start_date);
+      const reqYear = startDate.getFullYear();
+      const reqMonth = startDate.getMonth() + 1;
+      const monthCheck = await client.query(`
+            SELECT COUNT(*) AS count
+            FROM leave_requests 
+            WHERE employee_id = $1
+               AND half_day_type IN ('first_half', 'second_half')
+               AND status != 'Rejected'
+               AND EXTRACT(YEAR FROM start_date)=$2
+               AND EXTRACT(MONTH FROM start_date)= $3
+        `,
+        [targetEmployeeId, reqYear, reqMonth]
+      );
+
+      const monthlyHalfDays = parseInt(monthCheck.rows[0].count, 10);
+      if (monthlyHalfDays >= 2) {
+        return apiError(
+          "VALIDATION_ERROR",
+          "Maximum monthly limit of 2 half-days reached for this month !",
+          400
+        );
+      }
+      const yearCheck = await client.query(
+        `
+        SELECT COUNT(*) AS count
+        FROM leave_requests
+        WHERE employee_id = $1
+          AND half_day_type IN ('first_half', 'second_half')
+          AND status != 'Rejected'
+          AND EXTRACT(YEAR FROM start_date) = $2
+        `,
+        [targetEmployeeId, reqYear]
+      );
+
+      const yearlyHalfDays = parseInt(yearCheck.rows[0].count, 10);
+      if (yearlyHalfDays >= 24) {
+        return apiError(
+          "VALIDATION_ERROR",
+          "Maximum yearly limit of 24 half-days reached for this year.",
+          400
+        );
+      }
+    }
+
     const newLeave = await withTranscations(async (txClient) => {
-      const insertquery = `
+            const insertquery = `
         INSERT INTO leave_requests (
           employee_id,
           leave_type_id,
@@ -177,9 +229,9 @@ export async function POST(request: Request) {
         data.leave_code,
         data.start_date,
         data.end_date,
-        data.total_days,
-        data.half_day_type,
-        data.status || "pending",
+        totalDaysToDeduct,
+        data.half_day_type || "full_day",
+        data.status || "Pending",
         data.reason || null,
       ];
 
@@ -188,7 +240,32 @@ export async function POST(request: Request) {
         throw new Error("Leave type code not found in database");
       }
 
-      return result.rows[0];
+      const createdLeaveRequest = result.rows[0];
+      const empDetailsRes = await txClient.query(
+        `SELECT 
+           COALESCE(display_name, CONCAT(first_name, ' ', last_name)) AS employee_name,
+           reporting_manager_id
+         FROM employees
+         WHERE id = $1 LIMIT 1`,
+        [targetEmployeeId]
+      );
+
+      const employeeName = empDetailsRes.rows[0]?.employee_name || "An employee";
+      const managerId = empDetailsRes.rows[0]?.reporting_manager_id;
+
+      // 3. Trigger Notification to Reporting Manager (or HR fallback)
+      if (managerId) {
+        await createNotification(txClient, {
+          recipientId: managerId,
+          title: "New Leave Request",
+          message: `${employeeName} requested ${totalDaysToDeduct} day(s) of leave (${data.leave_code}) starting ${data.start_date}.`,
+          type: "leave_requested",
+          referenceId: createdLeaveRequest.id,
+          referenceType: "leave_requests",
+        });
+      }
+
+      return createdLeaveRequest;
     });
 
     return ok({

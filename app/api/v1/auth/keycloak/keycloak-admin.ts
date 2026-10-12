@@ -1,11 +1,7 @@
-
-
 const KEYCLOAK_URL = process.env.KEYCLOAK_URL || "https://auth.threemonkeys.in";
 const REALM = process.env.KEYCLOAK_REALM || "hrms-herbal-realm";
 const CLIENT_ID = process.env.KEYCLOAK_ADMIN_CLIENT_ID || "hrms-backend-service";
 const CLIENT_SECRET = process.env.KEYCLOAK_ADMIN_CLIENT_SECRET || "";
-
-
 
 async function getAdminToken(): Promise<string> {
   const tokenUrl = `${KEYCLOAK_URL}/realms/${REALM}/protocol/openid-connect/token`;
@@ -37,12 +33,18 @@ interface CreateKeycloakUserParams {
   firstName: string;
   lastName: string;
   roleName?: string;
+  initialPassword?: string;
 }
 
+export interface CreateUserResult {
+  keycloakId: string;
+  generatedPassword: string;
+}
 
-export async function createKeycloakUser(params: CreateKeycloakUserParams): Promise<string> {
+export async function createKeycloakUser(params: CreateKeycloakUserParams): Promise<CreateUserResult> {
   const token = await getAdminToken();
   const createUserUrl = `${KEYCLOAK_URL}/admin/realms/${REALM}/users`;
+  const initialPassword = params.initialPassword || generateRandomPassword();
 
   const res = await fetch(createUserUrl, {
     method: "POST",
@@ -56,8 +58,15 @@ export async function createKeycloakUser(params: CreateKeycloakUserParams): Prom
       firstName: params.firstName,
       lastName: params.lastName,
       enabled: true,
-      emailVerified: false,
-      requiredActions: ["UPDATE_PASSWORD", "VERIFY_EMAIL"],
+      emailVerified: true,
+      credentials: [
+        {
+          type: "password",
+          value: initialPassword,
+          temporary: true,
+        },
+      ],
+      requiredActions: ["UPDATE_PASSWORD"],
     }),
   });
 
@@ -69,22 +78,22 @@ export async function createKeycloakUser(params: CreateKeycloakUserParams): Prom
     const errText = await res.text();
     throw new Error(`Keycloak user creation failed: ${errText}`);
   }
+
   const locationHeader = res.headers.get("Location");
   if (!locationHeader) {
     throw new Error("Keycloak did not return a Location header for the created user.");
   }
 
   const keycloakId = locationHeader.split("/").pop()!;
+
   if (params.roleName) {
     await assignRoleToUser(token, keycloakId, params.roleName);
   }
 
-  return keycloakId;
+  return { keycloakId, generatedPassword: initialPassword };
 }
 
-
 async function assignRoleToUser(token: string, userId: string, roleName: string) {
-
   const roleUrl = `${KEYCLOAK_URL}/admin/realms/${REALM}/roles/${roleName}`;
   const roleRes = await fetch(roleUrl, {
     headers: { Authorization: `Bearer ${token}` },
@@ -103,7 +112,6 @@ async function assignRoleToUser(token: string, userId: string, roleName: string)
   });
 }
 
-
 export async function deleteKeycloakUser(userId: string): Promise<void> {
   try {
     const token = await getAdminToken();
@@ -115,4 +123,13 @@ export async function deleteKeycloakUser(userId: string): Promise<void> {
   } catch (err) {
     console.error(`CRITICAL: Failed to rollback Keycloak user ${userId}:`, err);
   }
+}
+
+function generateRandomPassword(length = 10): string {
+  const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
 }

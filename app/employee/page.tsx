@@ -13,6 +13,8 @@ import {
   Upload,
 } from "lucide-react";
 import { AddEmployeeModal } from "../modals/AddEmployeeModal";
+import { TempPasswordModal } from "../modals/TempPasswordModal";
+
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
 
@@ -49,10 +51,14 @@ const EmployeePage = () => {
     null,
   );
 
+  const [createdCredentials, setCreatedCredentials] = useState<any>(null);
+  const [isPasswordModalOpen, setIsPasswordModalOpen]= useState(false);
+
   const { roles, token } = useAuth();
   console.log("roles employee dsahboard m : ", roles);
   const hasHrRole = roles.includes("hr");
   const hasEmpRoles = roles.includes("employee");
+
   const fetchEmployees = useCallback(async () => {
     setLoading(true);
     try {
@@ -82,6 +88,13 @@ const EmployeePage = () => {
     }
   }, [search, activeTab]);
 
+  const handleModalSuccess = async(createdData?: any)=>{
+     await fetchEmployees();
+     if(createdData?.temporary_password){
+       setCreatedCredentials(createdData);
+       setIsPasswordModalOpen(true);
+     }
+  }
   const cardStyles = [
     "bg-blue-50/50 border-blue-100",
     "bg-purple-50/50 border-purple-100",
@@ -171,8 +184,13 @@ const EmployeePage = () => {
       <AddEmployeeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={fetchEmployees}
+        onSuccess={handleModalSuccess}
         employeeToEdit={selectedEmployee}
+      />
+      <TempPasswordModal 
+        isOpen={isPasswordModalOpen}
+        onClose={()=>setIsPasswordModalOpen(false)}
+        data={createdCredentials}
       />
 
       <div className="bg-white rounded-2xl p-3 border border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
