@@ -3,90 +3,26 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { parseJson } from "@/app/lib/api/validation";
 import { createEmployeeSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
-import {
-  createKeycloakUser,
-  deleteKeycloakUser,
-} from "../auth/keycloak/keycloak-admin";
+import {createKeycloakUser,deleteKeycloakUser} from "../auth/keycloak/keycloak-admin";
 
-export async function GET(request: Request) {
-  const client = await getPool().connect();
 
-  try {
-    const { searchParams } = new URL(request.url);
-    const authuser = await getAuthenticatedUser(request);
-    const isHR = authuser.roles.some((r) =>
-      ["hr", "hradmin", "hr_admin"].includes(r.toLowerCase()),
-    );
-    console.log("authuser.roles:", authuser.roles);
-    console.log("isHR:", isHR);
-    const search = searchParams.get("search");
+
+const employeeStrategies = {
+  // HR / Admin: Read all organization employees with optional filters
+  "employee:read:all": (_actorId: string, searchParams: URLSearchParams) => {
     const status = searchParams.get("status") || "active";
     const departmentId = searchParams.get("department_id");
-    const limit = Math.max(
-      1,
-      Math.min(100, Number(searchParams.get("limit")) || 20),
-    );
-    const page = Math.max(1, Number(searchParams.get("page")) || 1);
-    const offset = (page - 1) * limit;
+    const search = searchParams.get("search");
 
-    const queryParams: any[] = [];
-    const whereConditions: string[] = [];
-    let paramIndex = 1;
-
-    if (!isHR) {
-      queryParams.push(authuser.sub);
-      whereConditions.push(`e.keycloak_id = $${paramIndex++}`);
-    } else {
-      if (status) {
-        queryParams.push(status);
-        whereConditions.push(`e.status = $${paramIndex++}`);
-      }
-
-      if (departmentId) {
-        queryParams.push(departmentId);
-        whereConditions.push(`e.department_id = $${paramIndex++}`);
-      }
-
-      if (search) {
-        queryParams.push(`%${search}%`);
-        whereConditions.push(`(
-          e.employee_code ILIKE $${paramIndex} OR
-          e.first_name ILIKE $${paramIndex} OR
-          e.last_name ILIKE $${paramIndex} OR
-          e.work_email ILIKE $${paramIndex}
-        )`);
-        paramIndex++;
-      }
-    }
-
-    const whereClause =
-      whereConditions.length > 0
-        ? `WHERE ${whereConditions.join(" AND ")}`
-        : "";
-
-    const listQuery = `
+    let query = `
       SELECT 
-        e.id,
-        e.employee_code,
-        e.first_name,
-        e.middle_name,
-        e.last_name,
-        e.display_name,
-        e.profile_photo_url,
-        e.gender,
-        e.work_email,
-        e.mobile_number,
-        e.keycloak_id,
-        e.status,
-        e.employment_type,
-        e.joining_date,
-        e.system_role,
-        le.name AS legal_entity_name,
-        bu.name AS business_unit_name,
-        d.name AS department_name,
-        des.title AS designation_title,
-        loc.name AS location_name,
-        s.name AS shift_name,
+        e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
+        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.mobile_number, e.keycloak_id, e.status, e.employment_type,
+        e.joining_date, e.system_role,
+        le.name AS legal_entity_name, bu.name AS business_unit_name,
+        d.name AS department_name, des.title AS designation_title,
+        loc.name AS location_name, s.name AS shift_name,
         CONCAT(rm.first_name, ' ', rm.last_name) AS reporting_manager_name
       FROM employees e
       LEFT JOIN legal_entities le ON e.legal_entity_id = le.id
@@ -96,18 +32,155 @@ export async function GET(request: Request) {
       LEFT JOIN locations loc ON e.location_id = loc.id
       LEFT JOIN shifts s ON e.shift_id = s.id
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
-      ${whereClause}
-      ORDER BY e.created_at DESC
-      LIMIT $${paramIndex++} OFFSET $${paramIndex++}
+      WHERE 1=1
     `;
+    const params: any[] = [];
+    let idx = 1;
 
-    const countQuery = `SELECT COUNT(*) FROM employees e ${whereClause}`;
+    if (status) {
+      params.push(status);
+      query += ` AND e.status = $${idx++}`;
+    }
+    if (departmentId) {
+      params.push(departmentId);
+      query += ` AND e.department_id = $${idx++}`;
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (e.employee_code ILIKE $${idx} OR e.first_name ILIKE $${idx} OR e.last_name ILIKE $${idx} OR e.work_email ILIKE $${idx})`;
+      idx++;
+    }
+
+    return { query, params };
+  },
+
+  // Manager / Super Manager: Read direct reports + super reports + self
+  "employee:read:team": (actorId: string, searchParams: URLSearchParams) => {
+    const status = searchParams.get("status") || "active";
+    const search = searchParams.get("search");
+
+    let query = `
+      SELECT 
+        e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
+        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.mobile_number, e.keycloak_id, e.status, e.employment_type,
+        e.joining_date, e.system_role,
+        le.name AS legal_entity_name, bu.name AS business_unit_name,
+        d.name AS department_name, des.title AS designation_title,
+        loc.name AS location_name, s.name AS shift_name,
+        CONCAT(rm.first_name, ' ', rm.last_name) AS reporting_manager_name
+      FROM employees e
+      LEFT JOIN legal_entities le ON e.legal_entity_id = le.id
+      LEFT JOIN business_units bu ON e.business_unit_id = bu.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN designations des ON e.designation_id = des.id
+      LEFT JOIN locations loc ON e.location_id = loc.id
+      LEFT JOIN shifts s ON e.shift_id = s.id
+      LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
+      WHERE (e.reporting_manager_id = $1 OR e.super_manager_id = $1 OR e.id = $1)
+    `;
+    const params: any[] = [actorId];
+    let idx = 2;
+
+    if (status) {
+      params.push(status);
+      query += ` AND e.status = $${idx++}`;
+    }
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (e.employee_code ILIKE $${idx} OR e.first_name ILIKE $${idx} OR e.last_name ILIKE $${idx} OR e.work_email ILIKE $${idx})`;
+      idx++;
+    }
+
+    return { query, params };
+  },
+
+  // Employee: Read self record only
+  "employee:read:self": (actorId: string, searchParams: URLSearchParams) => {
+    const search = searchParams.get("search");
+
+    let query = `
+      SELECT 
+        e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
+        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.mobile_number, e.keycloak_id, e.status, e.employment_type,
+        e.joining_date, e.system_role,
+        le.name AS legal_entity_name, bu.name AS business_unit_name,
+        d.name AS department_name, des.title AS designation_title,
+        loc.name AS location_name, s.name AS shift_name,
+        CONCAT(rm.first_name, ' ', rm.last_name) AS reporting_manager_name
+      FROM employees e
+      LEFT JOIN legal_entities le ON e.legal_entity_id = le.id
+      LEFT JOIN business_units bu ON e.business_unit_id = bu.id
+      LEFT JOIN departments d ON e.department_id = d.id
+      LEFT JOIN designations des ON e.designation_id = des.id
+      LEFT JOIN locations loc ON e.location_id = loc.id
+      LEFT JOIN shifts s ON e.shift_id = s.id
+      LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
+      WHERE e.id = $1
+    `;
+    const params: any[] = [actorId];
+    let idx = 2;
+
+    if (search) {
+      params.push(`%${search}%`);
+      query += ` AND (e.employee_code ILIKE $${idx} OR e.first_name ILIKE $${idx} OR e.last_name ILIKE $${idx} OR e.work_email ILIKE $${idx})`;
+      idx++;
+    }
+
+    return { query, params };
+  },
+};
+
+// 2. GET Endpoint Handler
+export async function GET(request: Request) {
+  const client = await getPool().connect();
+
+  try {
+    const authUser = await getAuthenticatedUser(request);
+    if (!authUser?.sub) {
+      return apiError("UNAUTHORIZED", "Authentication required", 401);
+    }
+
+    const { searchParams } = new URL(request.url);
+    const limit = Math.max(1, Math.min(100, Number(searchParams.get("limit")) || 50));
+    const page = Math.max(1, Number(searchParams.get("page")) || 1);
+    const offset = (page - 1) * limit;
+
+    // Resolve Actor's internal employee ID from Keycloak sub
+    const empRes = await client.query(
+      `SELECT id FROM employees WHERE keycloak_id = $1 LIMIT 1`,
+      [authUser.sub]
+    );
+    if (empRes.rowCount === 0) {
+      return apiError("NOT_FOUND", "Employee record not found", 404);
+    }
+    const actorId = empRes.rows[0].id;
+    const roles = (authUser.roles || []).map((r: string) => r.toLowerCase());
+
+    // Determine Strategy Key based on Role priority
+    let strategyKey: keyof typeof employeeStrategies = "employee:read:self";
+
+    if (roles.some((r: string) => ["hr", "hradmin", "hr_admin", "admin"].includes(r))) {
+      strategyKey = "employee:read:all";
+    } else if (roles.some((r: string) => ["manager", "super_manager"].includes(r))) {
+      strategyKey = "employee:read:team";
+    }
+
+    // Execute Strategy to build query and params
+    const strategy = employeeStrategies[strategyKey];
+    const { query: baseQuery, params } = strategy(actorId, searchParams);
+
+    // Append Pagination to final query
+    const listQuery = `${baseQuery} ORDER BY e.created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    const countQuery = `SELECT COUNT(*) FROM (${baseQuery}) AS filtered_results`;
 
     const [listResult, countResult] = await Promise.all([
-      client.query(listQuery, [...queryParams, limit, offset]),
-      client.query(countQuery, queryParams),
+      client.query(listQuery, [...params, limit, offset]),
+      client.query(countQuery, params),
     ]);
-    const total = parseInt(countResult.rows[0].count, 10);
+
+    const total = parseInt(countResult.rows[0]?.count || "0", 10);
 
     return ok({
       success: true,

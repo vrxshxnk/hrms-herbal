@@ -17,7 +17,6 @@ import {
   Sun,
   Moon,
   Sunrise,
-  Hand,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
@@ -35,13 +34,6 @@ interface DashboardStats {
 interface DashboardCharts {
   hiringTrend?: { label: string; value: number }[];
   departments?: { name: string; count: number }[];
-}
-
-function getGreeting() {
-  const h = new Date().getHours();
-  if (h < 12) return "Good morning";
-  if (h < 17) return "Good afternoon";
-  return "Good evening";
 }
 
 function getGreetingDetails() {
@@ -273,7 +265,6 @@ function ChartCard({
 
 export default function DashboardPage() {
   const { token, roles, user } = useAuth();
-  console.log("user h", user);
   const userName = user?.name || user?.given_name || "User";
   const hasHrRole =
     roles.includes("hr") ||
@@ -332,52 +323,50 @@ export default function DashboardPage() {
     }
   };
 
-  const statCards = [
-    {
-      title: "Total Employees",
-      value: stats.totalEmployees,
-      note: "Active roster",
-      icon: Users,
-      color: "#FF8400",
-      tint: "bg-[#FFF3E6]",
-    },
-    {
-      title: "New Hires (30d)",
-      value: stats.newEmployees,
-      note: "Recent joins",
-      icon: UserPlus,
-      color: "#00B4D8",
-      tint: "bg-[#E6F8FC]",
-    },
-    {
-      title: "On Leave Today",
-      value: stats.onLeave,
-      note: "Approved leaves",
-      icon: Calendar,
-      color: "#F5A400",
-      tint: "bg-[#FFF8E1]",
-    },
-    ...(hasManagerRole
-      ? [
-          {
-            title: "Pending Leaves",
-            value: stats.pendingLeaves,
-            note: "Requires action",
-            icon: Briefcase,
-            color: "#00A86B",
-            tint: "bg-[#E8F7F0]",
-          },
-          {
-            title: "Pending Reimbursements",
-            value: stats.pendingReimbursements,
-            note: "Expense claims",
-            icon: Clock,
-            color: "#FF3B30",
-            tint: "bg-[#FFECEB]",
-          },
-        ]
-      : []),
-  ];
+  const statCards = hasHrRole
+    ? [
+        {
+          title: "Total Employees",
+          value: stats.totalEmployees,
+          note: "Active roster",
+          icon: Users,
+          color: "#FF8400",
+          tint: "bg-[#FFF3E6]",
+        },
+        {
+          title: "New Hires (30d)",
+          value: stats.newEmployees,
+          note: "Recent joins",
+          icon: UserPlus,
+          color: "#00B4D8",
+          tint: "bg-[#E6F8FC]",
+        },
+        {
+          title: "On Leave Today",
+          value: stats.onLeave,
+          note: "Approved leaves",
+          icon: Calendar,
+          color: "#F5A400",
+          tint: "bg-[#FFF8E1]",
+        },
+        {
+          title: "Pending Leaves",
+          value: stats.pendingLeaves,
+          note: "Requires action",
+          icon: Briefcase,
+          color: "#00A86B",
+          tint: "bg-[#E8F7F0]",
+        },
+        {
+          title: "Pending Reimbursements",
+          value: stats.pendingReimbursements,
+          note: "Expense claims",
+          icon: Clock,
+          color: "#FF3B30",
+          tint: "bg-[#FFECEB]",
+        },
+      ]
+    : [];
 
   const modules = [
     {
@@ -472,6 +461,7 @@ export default function DashboardPage() {
   const formattedName = userName
     ? userName.replace(/\b\w/g, (char: string) => char.toUpperCase())
     : "User";
+
   return (
     <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
       <AddEmployeeModal
@@ -530,61 +520,61 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div
-        className={`grid grid-cols-2 sm:grid-cols-3 ${hasManagerRole ? "xl:grid-cols-5" : "xl:grid-cols-3"} gap-4`}
-      >
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.title}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgba(16,24,40,0.18)]"
-            >
+      {/* Stats (Visible only to HR/Admin) */}
+      {hasHrRole && statCards.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
+          {statCards.map((stat) => {
+            const Icon = stat.icon;
+            return (
               <div
-                className="absolute inset-x-0 top-0 h-[3px] opacity-80"
-                style={{ background: stat.color }}
-              />
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tint}`}
+                key={stat.title}
+                className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgba(16,24,40,0.18)]"
               >
-                <Icon className="h-5 w-5" style={{ color: stat.color }} />
+                <div
+                  className="absolute inset-x-0 top-0 h-[3px] opacity-80"
+                  style={{ background: stat.color }}
+                />
+                <div
+                  className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tint}`}
+                >
+                  <Icon className="h-5 w-5" style={{ color: stat.color }} />
+                </div>
+                <div className="mt-4">
+                  {loading ? (
+                    <div className="h-8 w-12 animate-pulse rounded-md bg-slate-100" />
+                  ) : (
+                    <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+                      {stat.value}
+                    </h2>
+                  )}
+                  <p className="mt-1 text-xs font-semibold text-slate-700">
+                    {stat.title}
+                  </p>
+                  <p className="mt-0.5 text-[11px] font-medium text-slate-400">
+                    {stat.note}
+                  </p>
+                </div>
               </div>
-              <div className="mt-4">
-                {loading ? (
-                  <div className="h-8 w-12 animate-pulse rounded-md bg-slate-100" />
-                ) : (
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-                    {stat.value}
-                  </h2>
-                )}
-                <p className="mt-1 text-xs font-semibold text-slate-700">
-                  {stat.title}
-                </p>
-                <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                  {stat.note}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <ChartCard
-          title="Workforce Status"
-          subtitle="Working vs on leave today"
-        >
-          <DonutChart
-            segments={workforceSegments}
-            centerValue={stats.totalEmployees}
-            centerLabel="Employees"
-            loading={loading}
-          />
-        </ChartCard>
+      {/* Charts row (Visible only to HR/Admin) */}
+      {hasHrRole && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <ChartCard
+            title="Workforce Status"
+            subtitle="Working vs on leave today"
+          >
+            <DonutChart
+              segments={workforceSegments}
+              centerValue={stats.totalEmployees}
+              centerLabel="Employees"
+              loading={loading}
+            />
+          </ChartCard>
 
-        {hasManagerRole && (
           <ChartCard
             title="Pending Approvals"
             subtitle="Items waiting for your action"
@@ -596,12 +586,12 @@ export default function DashboardPage() {
               loading={loading}
             />
           </ChartCard>
-        )}
 
-        <ChartCard title="At a Glance" subtitle="All key numbers compared">
-          <BarList items={overviewBars} loading={loading} />
-        </ChartCard>
-      </div>
+          <ChartCard title="At a Glance" subtitle="All key numbers compared">
+            <BarList items={overviewBars} loading={loading} />
+          </ChartCard>
+        </div>
+      )}
 
       {/* Hiring Trends / Analytics (Visible to HR/Admin) */}
       {hasHrRole && (hasTrend || hasDepts) && (

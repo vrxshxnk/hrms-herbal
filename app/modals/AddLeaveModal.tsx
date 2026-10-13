@@ -1,7 +1,6 @@
 "use client";
-import { Sun,Moon } from "lucide-react";
+import { Sun, Moon, X } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
 type AddLeaveModalProps = {
@@ -21,14 +20,14 @@ const LEAVE_TYPES = [
   { code: "SICK", name: "Sick Leave" },
   { code: "MATERNITY", name: "Maternity Leave" },
   { code: "PATERNITY", name: "Paternity Leave" },
-  {code :"HALF_DAY", name:"Half Day Leave"}
+  { code: "HALF_DAY", name: "Half Day Leave" },
 ];
 
 const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [employees, setEmployees] = useState<EmployeeOption[]>([]);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>("");
   const [leaveCode, setLeaveCode] = useState<string>("");
-  const [halfDayType, setHalfDayType] = useState<"full_day" | "first_half"|"second_half">("first_half");
+  const [halfDayType, setHalfDayType] = useState<"full_day" | "first_half" | "second_half">("first_half");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
   const [reason, setReason] = useState<string>("");
@@ -37,47 +36,45 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { token, roles, hasRole } = useAuth();
-  console.log("role of employe leave k liye :", hasRole);
-
-  console.log("Is Manager?:", hasRole("manager"));
-  console.log("Is HR?:", hasRole("hr"));
-
-  console.log("startdate", startDate);
-  console.log("endDate", endDate);
-
-  const isHrOrManager = hasRole("hr") || hasRole("manager");
+  const { token, hasRole,user ,dbUser} = useAuth();
+  console.log("user leave",user);
+  console.log("dbuser",dbUser);
+  const isHr = hasRole("hr") || hasRole("admin");
+  const isManager = hasRole("manager") || hasRole("super_manager");
+  const isHrOrManager = isHr || isManager;
 
   const totalDays = useMemo(() => {
-     if (!startDate || !endDate) return 0;
-     if (leaveCode === 'HALF_DAY') return 0.5;
-     const [startYear, startMonth, startDay] = startDate.split('-').map(Number);
-     const [endYear, endMonth, endDay] = endDate.split('-').map(Number);
-     const start = new Date(startYear, startMonth - 1, startDay);
-     const end = new Date(endYear, endMonth - 1, endDay);
-     if (end < start) return 0;
-     let count = 0;
-     const current = new Date(start);
-     while (current <= end) {
-     if (current.getDay() !== 0) {
-      count++;
-     }
-     current.setDate(current.getDate() + 1);
+    if (!startDate || !endDate) return 0;
+    if (leaveCode === "HALF_DAY") return 0.5;
+    const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
+    if (end < start) return 0;
+    let count = 0;
+    const current = new Date(start);
+    while (current <= end) {
+      if (current.getDay() !== 0) {
+        count++;
+      }
+      current.setDate(current.getDate() + 1);
     }
     return count;
-}, [startDate, endDate, leaveCode]);
-
+  }, [startDate, endDate, leaveCode]);
 
   useEffect(() => {
-  if (leaveCode === "HALF_DAY" && startDate) {
-    setEndDate(startDate);
-   }
-}, [leaveCode, startDate]);
+    if (leaveCode === "HALF_DAY" && startDate) {
+      setEndDate(startDate);
+    }
+  }, [leaveCode, startDate]);
 
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage(null);
-
+    if(!isHrOrManager){
+      setSelectedEmployeeId(dbUser.id);
+      return; 
+    }
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
@@ -88,9 +85,9 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
           },
         });
         const json = await res.json();
-        if (json.data?.data) {
-          setEmployees(json.data.data);
-        }
+        // Handle both standard list structures
+        const empList = json.data?.data || json.data || [];
+        setEmployees(empList);
       } catch (err) {
         console.error("Failed to fetch employees:", err);
       } finally {
@@ -99,7 +96,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
     };
 
     fetchEmployees();
-  }, [isOpen]);
+  }, [isOpen, token, isHrOrManager, dbUser]);
 
   if (!isOpen) return null;
 
@@ -129,15 +126,16 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
     setSubmitting(true);
     try {
       const payload = {
-        employee_id: selectedEmployeeId,
+        employee_id: selectedEmployeeId || undefined,
         leave_code: leaveCode,
         start_date: startDate,
-        end_date: leaveCode === "HALF_DAY" ? startDate: endDate,
+        end_date: leaveCode === "HALF_DAY" ? startDate : endDate,
         total_days: totalDays,
-        half_day_type:leaveCode === "HALF_DAY" ? halfDayType : "full_day",
-        status: status,
+        half_day_type: leaveCode === "HALF_DAY" ? halfDayType : "full_day",
+        status: isHrOrManager ? status : "Pending",
         reason: reason.trim() || null,
       };
+
       const res = await fetch("/api/v1/leave", {
         method: "POST",
         headers: {
@@ -146,12 +144,11 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
         },
         body: JSON.stringify(payload),
       });
+
       const result = await res.json();
       if (!res.ok) {
         throw new Error(
-          result.error?.message ||
-            result.message ||
-            "Failed to add leave request",
+          result.error?.message || result.message || "Failed to add leave request"
         );
       }
       resetForm();
@@ -195,25 +192,40 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Employee *
             </label>
-            <select
-              name="employee_id"
-              value={selectedEmployeeId}
-              onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              required
-              disabled={loadingEmployees || submitting}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981] disabled:bg-slate-50"
-            >
-              <option value="" disabled>
-                {loadingEmployees
-                  ? "Loading employees..."
-                  : "Select an employee"}
-              </option>
-              {employees.map((emp) => (
-                <option key={emp.id} value={emp.id}>
-                  {emp.display_name} ({emp.employee_code})
+
+            {isHrOrManager ? (
+              <select
+                name="employee_id"
+                value={selectedEmployeeId}
+                onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                required
+                disabled={loadingEmployees || submitting}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50"
+              >
+                <option value="" disabled>
+                  {loadingEmployees
+                    ? "Loading employees..."
+                    : "Select an employee"}
                 </option>
-              ))}
-            </select>
+                {employees.map((emp) => (
+                  <option key={emp.id} value={emp.id}>
+                    {emp.display_name} ({emp.employee_code})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200/80 rounded-xl text-sm text-slate-600 flex items-center justify-between cursor-not-allowed">
+                <span className="capitalize font-medium">
+                  {dbUser?.display_name || 
+                    (dbUser?.first_name && dbUser?.last_name 
+                      ? `${dbUser.first_name} ${dbUser.last_name}` 
+                      : dbUser?.first_name || "Loading...")}
+                </span>
+                <span className="text-xs text-slate-400 font-mono">
+                  ({dbUser?.employee_code || "EMP"})
+                </span>
+              </div>
+            )}
           </div>
 
           <div>
@@ -226,7 +238,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               onChange={(e) => setLeaveCode(e.target.value)}
               required
               disabled={submitting}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981] disabled:bg-slate-50"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50"
             >
               <option value="" disabled>
                 Select leave type
@@ -238,29 +250,23 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               ))}
             </select>
 
-            {/* Half-Day Shift Selection (Shown only when HALF_DAY is selected) */}
             {leaveCode === "HALF_DAY" && (
               <div className="p-3 bg-slate-50 mt-2 border border-slate-200/80 rounded-xl space-y-2">
                 <label className="block text-xs font-semibold text-slate-500 tracking-wider">
                   Half Day Shift *
                 </label>
                 <div className="grid grid-cols-2 gap-2 pt-1">
-                  {/* First Half Option */}
                   <button
                     type="button"
                     onClick={() => setHalfDayType("first_half")}
                     className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
                       halfDayType === "first_half"
-                        ? "border-[#10b981] bg-emerald-50/60 text-[#10b981] shadow-sm font-medium"
+                        ? "border-[#316AFF] bg-blue-50/60 text-[#316AFF] shadow-sm font-medium"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     <div
-                      className={`p-1.5 rounded-lg ${
-                        halfDayType === "first_half"
-                          ? "bg-[#10b981] text-white"
-                          : "bg-amber-100 text-amber-600"
-                      }`}
+                      className={`p-1.5 rounded-lg ${halfDayType === "first_half" ? "bg-[#316AFF] text-white" : "bg-amber-100 text-amber-600"}`}
                     >
                       <Sun className="w-4 h-4" />
                     </div>
@@ -269,33 +275,24 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                         First Half
                       </span>
                       <span
-                        className={`text-[10px] mt-0.5 ${
-                          halfDayType === "first_half"
-                            ? "text-emerald-700"
-                            : "text-slate-400"
-                        }`}
+                        className={`text-[10px] mt-0.5 ${halfDayType === "first_half" ? "text-blue-700" : "text-slate-400"}`}
                       >
                         Morning
                       </span>
                     </div>
                   </button>
 
-                  {/* Second Half Option */}
                   <button
                     type="button"
                     onClick={() => setHalfDayType("second_half")}
                     className={`flex items-center gap-2.5 p-2.5 rounded-xl border text-left transition-all ${
                       halfDayType === "second_half"
-                        ? "border-[#10b981] bg-emerald-50/60 text-[#10b981] shadow-sm font-medium"
+                        ? "border-[#316AFF] bg-blue-50/60 text-[#316AFF] shadow-sm font-medium"
                         : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50"
                     }`}
                   >
                     <div
-                      className={`p-1.5 rounded-lg ${
-                        halfDayType === "second_half"
-                          ? "bg-[#10b981] text-white"
-                          : "bg-indigo-100 text-indigo-600"
-                      }`}
+                      className={`p-1.5 rounded-lg ${halfDayType === "second_half" ? "bg-[#316AFF] text-white" : "bg-indigo-100 text-indigo-600"}`}
                     >
                       <Moon className="w-4 h-4" />
                     </div>
@@ -304,11 +301,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                         Second Half
                       </span>
                       <span
-                        className={`text-[10px] mt-0.5 ${
-                          halfDayType === "second_half"
-                            ? "text-emerald-700"
-                            : "text-slate-400"
-                        }`}
+                        className={`text-[10px] mt-0.5 ${halfDayType === "second_half" ? "text-blue-700" : "text-slate-400"}`}
                       >
                         Afternoon
                       </span>
@@ -331,7 +324,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 onChange={(e) => setStartDate(e.target.value)}
                 required
                 disabled={submitting}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
               />
             </div>
             <div>
@@ -345,7 +338,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 onChange={(e) => setEndDate(e.target.value)}
                 required
                 disabled={submitting || leaveCode === "HALF_DAY"}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
               />
             </div>
           </div>
@@ -374,7 +367,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
               onChange={(e) => setReason(e.target.value)}
               disabled={submitting}
               placeholder="Enter leave reason"
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#10b981] resize-none"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#316AFF] resize-none"
             />
           </div>
 
@@ -389,7 +382,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 onChange={(e) => setStatus(e.target.value)}
                 required
                 disabled={submitting}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#10b981]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
               >
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
@@ -410,7 +403,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             <button
               type="submit"
               disabled={submitting}
-              className="bg-[#10b981] hover:bg-[#0d9e6e] text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
+              className="bg-[#316AFF] hover:bg-[#2554D7] text-white px-6 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 shadow-sm"
             >
               {submitting ? "Submitting..." : "Submit Leave"}
             </button>

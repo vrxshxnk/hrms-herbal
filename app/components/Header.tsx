@@ -207,7 +207,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
       <div className="flex items-center gap-4 flex-1">
         <button
           onClick={toggleSidebar}
-          className="text-slate-600 hover:text-slate-900 focus:outline-none"
+          className="text-slate-600 hover:text-slate-900 focus:outline-none lg:hidden"
         >
           <Menu className="w-5 h-5" />
         </button>
@@ -391,10 +391,13 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 </div>
 
                 <div className="py-1">
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <Link
+                    href="/employee"
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+                  >
                     <User2 className="w-4 h-4" />
                     <span>View Profile</span>
-                  </button>
+                  </Link>
 
                   <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
                     <CreditCard className="w-4 h-4" />
@@ -417,7 +420,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   </button>
                 </div>
 
-                <div className="border-t border-slate-100 py-1">
+                {/* <div className="border-t border-slate-100 py-1">
                   <Link
                     href="/resignation"
                     className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
@@ -425,7 +428,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                     <UserMinus className="w-4 h-4" />
                     <span>Resignation And Exit</span>
                   </Link>
-                </div>
+                </div> */}
               </div>
             )}
           </div>

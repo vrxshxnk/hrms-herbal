@@ -183,7 +183,7 @@ export default function EmployeeLeaveTable({
     }
     return true;
   });
-  console.log("tracking row rigth now :",trackingLeave);
+
   return (
     <>
       <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
@@ -208,13 +208,14 @@ export default function EmployeeLeaveTable({
           </div>
         </div>
 
-        <div className="w-full overflow-x-auto rounded-lg">
+        {/* Custom scrollbar applied here for desktop/mouse users */}
+        <div className="w-full overflow-x-auto rounded-lg pb-3 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-lg [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-lg hover:[&::-webkit-scrollbar-thumb]:bg-slate-400">
           <table className="w-full text-left border-collapse min-w-[1250px]">
             <thead>
               <tr className="bg-blue-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-4">Leave Type</th>
-                <th className="py-3 px-4">Department</th>
+                {isHR && (<th className="py-3 px-4">Department</th>)}
                 <th className="py-3 px-4">Balance</th>
                 <th className="py-3 px-4">Days</th>
                 <th className="py-3 px-4">Start</th>
@@ -281,9 +282,11 @@ export default function EmployeeLeaveTable({
                       <td className="py-3 px-4 whitespace-nowrap text-emerald-600 font-medium">
                         {row.leave_type}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                     {isHR && (
+                         <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                         {row.department || "N/A"}
                       </td>
+                     )}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
                           <span className="text-blue-600 font-bold">
