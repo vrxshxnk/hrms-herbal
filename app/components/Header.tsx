@@ -18,10 +18,34 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
+  Loader2,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+
+// Loader shown the moment "View Profile" is clicked, while the profile code loads
+const ProfileLoader = () => (
+  <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/40 backdrop-blur-[2px]">
+    <div className="flex flex-col items-center gap-3 rounded-2xl border border-slate-100 bg-white px-9 py-7 shadow-2xl">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#316AFF]/10">
+        <Loader2 className="h-6 w-6 animate-spin text-[#316AFF]" />
+      </span>
+      <div className="text-center">
+        <p className="text-sm font-semibold text-slate-800">Loading profile</p>
+        <p className="mt-0.5 text-xs text-slate-400">Please wait a moment...</p>
+      </div>
+    </div>
+  </div>
+);
+
+// Loaded on demand (and pre-loaded on hover) so the page itself stays light
+const preloadProfileModal = () => import("../modals/ProfileModal");
+const ProfileModal = dynamic(
+  () => preloadProfileModal().then((m) => m.ProfileModal),
+  { ssr: false, loading: () => <ProfileLoader /> },
+);
 
 type HeaderProps = {
   toggleSidebar: () => void;
@@ -42,11 +66,31 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const { user, logout, token } = useAuth();
   const [isUserOpen, setIsUserOpen] = useState<boolean>(false);
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
-
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(false);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const previousUnreadCount = useRef<number>(0);
 
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsUserOpen(false);
+      }
+    };
+    if (isUserOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isUserOpen]);
+  
   const playChimeSound = useCallback(() => {
     try {
       const AudioCtx =
@@ -114,7 +158,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 15000); 
+    const interval = setInterval(fetchNotifications, 15000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
@@ -202,6 +246,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   };
 
   return (
+    <>
     <header className="w-full bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between gap-4 relative z-40">
       {/* Left side: Mobile Toggle & Search */}
       <div className="flex items-center gap-4 flex-1">
@@ -360,8 +405,11 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             </p>
           </div>
 
-          <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+          <div  ref={dropdownRef} className="relative flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
             <button
+              onMouseEnter={preloadProfileModal}
+              onFocus={preloadProfileModal}
+              onTouchStart={preloadProfileModal}
               onClick={() => {
                 setIsUserOpen((prev) => !prev);
                 setIsNotifOpen(false);
@@ -391,20 +439,24 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 </div>
 
                 <div className="py-1">
-                  <Link
-                    href="/employee"
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors"
+                  <button
+                    type="button"
+                    onClick={() =>{
+                       setIsProfileOpen(true);
+                       setIsUserOpen(false);
+                    } }
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors cursor-pointer"
                   >
                     <User2 className="w-4 h-4" />
                     <span>View Profile</span>
-                  </Link>
+                  </button>
 
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
                     <CreditCard className="w-4 h-4" />
                     <span>My Task</span>
                   </button>
 
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
                     <CircleHelp className="w-4 h-4" />
                     <span>Help Center</span>
                   </button>
@@ -435,6 +487,15 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
         </div>
       </div>
     </header>
+
+    {/* Rendered outside the dropdown so closing the menu does not unmount it */}
+    {isProfileOpen && (
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+      />
+    )}
+    </>
   );
 };
 

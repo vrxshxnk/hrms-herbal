@@ -36,12 +36,21 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const { token, hasRole,user ,dbUser} = useAuth();
-  console.log("user leave",user);
-  console.log("dbuser",dbUser);
+  const { token, hasRole, user, dbUser } = useAuth();
+  
   const isHr = hasRole("hr") || hasRole("admin");
   const isManager = hasRole("manager") || hasRole("super_manager");
   const isHrOrManager = isHr || isManager;
+
+  // Check if applying for self
+  const isApplyingForSelf = !selectedEmployeeId || selectedEmployeeId === dbUser?.id;
+  useEffect(() => {
+    if (isApplyingForSelf) {
+      setStatus("Pending");
+    } else {
+      setStatus("Approved");
+    }
+  }, [selectedEmployeeId, isApplyingForSelf]);
 
   const totalDays = useMemo(() => {
     if (!startDate || !endDate) return 0;
@@ -71,10 +80,11 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   useEffect(() => {
     if (!isOpen) return;
     setErrorMessage(null);
-    if(!isHrOrManager){
-      setSelectedEmployeeId(dbUser.id);
-      return; 
+    if (!isHrOrManager) {
+      setSelectedEmployeeId(dbUser?.id || "");
+      return;
     }
+
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
@@ -85,9 +95,13 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
           },
         });
         const json = await res.json();
-        // Handle both standard list structures
         const empList = json.data?.data || json.data || [];
         setEmployees(empList);
+        
+        // Default select current user in dropdown if available
+        if (dbUser?.id) {
+          setSelectedEmployeeId(dbUser.id);
+        }
       } catch (err) {
         console.error("Failed to fetch employees:", err);
       } finally {
@@ -101,7 +115,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
   if (!isOpen) return null;
 
   const resetForm = () => {
-    setSelectedEmployeeId("");
+    setSelectedEmployeeId(dbUser?.id || "");
     setLeaveCode("");
     setStartDate("");
     setEndDate("");
@@ -132,7 +146,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
         end_date: leaveCode === "HALF_DAY" ? startDate : endDate,
         total_days: totalDays,
         half_day_type: leaveCode === "HALF_DAY" ? halfDayType : "full_day",
-        status: isHrOrManager ? status : "Pending",
+        status: isHrOrManager && !isApplyingForSelf ? status : "Pending",
         reason: reason.trim() || null,
       };
 
@@ -210,6 +224,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 {employees.map((emp) => (
                   <option key={emp.id} value={emp.id}>
                     {emp.display_name} ({emp.employee_code})
+                    {emp.id === dbUser?.id ? " (You)" : ""}
                   </option>
                 ))}
               </select>
@@ -371,7 +386,8 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
             />
           </div>
 
-          {isHrOrManager && (
+          {/* Status Field: Shows only when applying for others, defaulting to Approved */}
+          {isHrOrManager && !isApplyingForSelf && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 mb-1.5">
                 Status *
@@ -384,8 +400,8 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                 disabled={submitting}
                 className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
               >
-                <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
+                <option value="Pending">Pending</option>
                 <option value="Rejected">Rejected</option>
               </select>
             </div>
