@@ -17,6 +17,7 @@ import {
   Sun,
   Moon,
   Sunrise,
+  User as UserIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
@@ -281,6 +282,7 @@ export default function DashboardPage() {
     pendingReimbursements: 0,
   });
   const [charts, setCharts] = useState<DashboardCharts>({});
+  const [profile, setProfile] = useState<any>(null); // Track employee profile data for photo
   const [loading, setLoading] = useState<boolean>(true);
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -310,10 +312,28 @@ export default function DashboardPage() {
     }
   }, [token]);
 
+  // Fetch employee profile to retrieve profile_photo_url
+  const fetchProfile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch("/api/v1/profile", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const result = await res.json();
+      const data = result?.data?.data || result?.data;
+      if (data) {
+        setProfile(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch dashboard user profile:", err);
+    }
+  }, [token]);
+
   useEffect(() => {
     if (!token) return;
     fetchStats();
-  }, [token, fetchStats]);
+    fetchProfile();
+  }, [token, fetchStats, fetchProfile]);
 
   const handleModalSuccess = async (createdData?: any) => {
     await fetchStats();
@@ -487,25 +507,45 @@ export default function DashboardPage() {
               <Sparkles className="w-3 h-3 text-[#316AFF]" />
               {currentDateFormatted}
             </div>
-            <div className="flex items-center gap-2">
-              <h1 className="mt-3 flex flex-wrap items-center gap-2 text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                <span className="inline-flex items-center gap-2">
-                  <GreetingIcon
-                    className={`w-7 h-7 ${greeting.color} inline-block animate-bounce`}
-                  />
-                  {greeting.text}, welcome back,
-                </span>
-                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#316AFF] to-[#1D4ED8] bg-clip-text text-transparent font-extrabold">
-                  {formattedName}!
-                  <span className="text-2xl animate-pulse inline-block">
-                    👋
+            <div className="flex items-center gap-3.5 mt-3">
+              <div className="relative group shrink-0">
+                {/* Circular Glassmorphic Avatar Wrapper */}
+                <div className="relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center overflow-hidden rounded-full bg-slate-100 border-2 border-white shadow-sm ring-2 ring-blue-100/80 transition-all duration-300 hover:ring-blue-400/50">
+                  {profile?.profile_photo_url ? (
+                    <img
+                      src={profile.profile_photo_url}
+                      alt={formattedName}
+                      className="h-full w-full object-cover rounded-full"
+                    />
+                  ) : (
+                    <UserIcon className="h-6 w-6 text-slate-400" />
+                  )}
+                </div>
+                {/* Online Status Indicator */}
+                <span className="absolute bottom-0.5 right-0.5 h-3 w-3 rounded-full bg-emerald-500 border-2 border-white shadow-2xs z-10" />
+              </div>
+
+              <div>
+                <h1 className="flex flex-wrap items-center gap-2 text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
+                  <span className="inline-flex items-center gap-2">
+                    <GreetingIcon
+                      className={`w-7 h-7 ${greeting.color} inline-block animate-bounce`}
+                    />
+                    {greeting.text}, welcome back,
                   </span>
-                </span>
-              </h1>
+                  <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#316AFF] to-[#1D4ED8] bg-clip-text text-transparent font-extrabold">
+                    {formattedName}!
+                    <span className="text-2xl animate-pulse inline-block">
+                      👋
+                    </span>
+                  </span>
+                </h1>
+                <p className="mt-1 text-sm text-slate-500 max-w-xl">
+                  Here&apos;s a quick overview of your workspace activities
+                  today.
+                </p>
+              </div>
             </div>
-            <p className="mt-1.5 text-sm text-slate-500 max-w-xl">
-              Here&apos;s a quick overview of your workspace activities today.
-            </p>
           </div>
           {hasHrRole && (
             <button

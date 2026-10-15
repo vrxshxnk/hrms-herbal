@@ -67,12 +67,34 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const [isUserOpen, setIsUserOpen] = useState<boolean>(false);
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [isProfileLoading, setIsProfileLoading] = useState(false);
+  const [profile, setProfile] = useState<any>(null); // Added state to track employee profile data including photo
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const previousUnreadCount = useRef<number>(0);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Fetch header profile data to check for uploaded profile_photo_url
+  useEffect(() => {
+    if (!token) return;
+
+    async function fetchHeaderProfile() {
+      try {
+        const res = await fetch("/api/v1/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const result = await res.json();
+        const data = result?.data?.data || result?.data;
+        if (data) {
+          setProfile(data);
+        }
+      } catch (err) {
+        console.error("Failed to fetch header profile:", err);
+      }
+    }
+
+    fetchHeaderProfile();
+  }, [token, isProfileOpen]); // Re-fetch when profile modal closes/updates
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -143,7 +165,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
       const fetchedUnread: number =
         result?.data?.unread_count ?? result?.unread_count ?? 0;
 
-      // Play chime if new unread items arrive
       if (fetchedUnread > 0 && fetchedUnread > previousUnreadCount.current) {
         playChimeSound();
       }
@@ -154,7 +175,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
-  }, [playChimeSound]);
+  }, [playChimeSound, token]);
 
   useEffect(() => {
     fetchNotifications();
@@ -305,7 +326,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             {/* Notification Flyout Modal */}
             {isNotifOpen && (
               <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
-                {/* Header */}
                 <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xs font-bold text-slate-800">
@@ -336,7 +356,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   </div>
                 </div>
 
-                {/* Notifications List */}
                 <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
                   {notifications.length === 0 ? (
                     <div className="p-8 text-center">
@@ -405,7 +424,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             </p>
           </div>
 
-          <div  ref={dropdownRef} className="relative flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
+          <div ref={dropdownRef} className="relative flex items-center justify-center">
             <button
               onMouseEnter={preloadProfileModal}
               onFocus={preloadProfileModal}
@@ -414,18 +433,35 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 setIsUserOpen((prev) => !prev);
                 setIsNotifOpen(false);
               }}
+              className="relative w-8 h-8 rounded-full overflow-hidden bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-400 cursor-pointer"
             >
-              <User className="w-4 h-4" />
-              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+              {profile?.profile_photo_url ? (
+                <img
+                  src={profile.profile_photo_url}
+                  alt={user?.name || "Profile"}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="w-4 h-4 text-slate-500" />
+              )}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full z-10" />
             </button>
 
             {isUserOpen && (
               <div className="absolute right-0 top-11 z-[100] w-64 sm:w-72 bg-white border border-slate-200 rounded-lg shadow-xl overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
-                      <User className="w-5 h-5" />
-                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                    <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full overflow-hidden bg-slate-100 border border-slate-200 text-slate-500">
+                      {profile?.profile_photo_url ? (
+                        <img
+                          src={profile.profile_photo_url}
+                          alt={user?.name || "Profile"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-5 h-5" />
+                      )}
+                      <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full z-10" />
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-slate-800 truncate">
@@ -441,22 +477,22 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 <div className="py-1">
                   <button
                     type="button"
-                    onClick={() =>{
+                    onClick={() => {
                        setIsProfileOpen(true);
                        setIsUserOpen(false);
-                    } }
+                    }}
                     className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors cursor-pointer"
                   >
                     <User2 className="w-4 h-4" />
                     <span>View Profile</span>
                   </button>
 
-                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors cursor-pointer">
                     <CreditCard className="w-4 h-4" />
                     <span>My Task</span>
                   </button>
 
-                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <button onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors cursor-pointer">
                     <CircleHelp className="w-4 h-4" />
                     <span>Help Center</span>
                   </button>
@@ -471,16 +507,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                     <span>Log Out</span>
                   </button>
                 </div>
-
-                {/* <div className="border-t border-slate-100 py-1">
-                  <Link
-                    href="/resignation"
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <UserMinus className="w-4 h-4" />
-                    <span>Resignation And Exit</span>
-                  </Link>
-                </div> */}
               </div>
             )}
           </div>

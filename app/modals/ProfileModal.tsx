@@ -14,6 +14,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Hash,
+  Camera,
 } from "lucide-react";
 
 interface ProfileModalProps {
@@ -26,6 +27,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [saving, setSaving] = useState<boolean>(false);
+  const [uploadingImage, setUploadingImage] = useState<boolean>(false);
   const [message, setMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -48,6 +50,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
     marital_status: "",
     nationality: "",
     preferred_language: "",
+    profile_photo_url: "",
   });
 
   useEffect(() => {
@@ -79,6 +82,7 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             marital_status: data.marital_status || "",
             nationality: data.nationality || "",
             preferred_language: data.preferred_language || "english",
+            profile_photo_url: data.profile_photo_url || "",
           });
         }
       } catch (err) {
@@ -100,6 +104,30 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
   ) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (message) setMessage(null);
+  };
+
+  // Image File Handler (Converts image to Base64 so it can be previewed and saved instantly)
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({ type: "error", text: "Image size must be less than 2MB." });
+      return;
+    }
+
+    setUploadingImage(true);
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      setFormData((prev) => ({ ...prev, profile_photo_url: base64String }));
+      setUploadingImage(false);
+    };
+    reader.onerror = () => {
+      setUploadingImage(false);
+      setMessage({ type: "error", text: "Failed to read image file." });
+    };
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -126,7 +154,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
           text: "Profile updated successfully!",
         });
 
-        // Success message dikhane ke 1 second baad modal automatically close ho jayega
         setTimeout(() => {
           onClose();
         }, 1000);
@@ -146,8 +173,11 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
 
   const firstName = profile?.first_name || "User";
   const lastName = profile?.last_name || "";
-  const fullName = profile?.display_name || `${firstName} ${lastName}`.trim();
+  const fullName = formData.display_name || profile?.display_name || `${firstName} ${lastName}`.trim();
+  
+  // Display active uploaded photo or fallback to Dicebear avatar
   const avatarUrl =
+    formData.profile_photo_url ||
     profile?.profile_photo_url ||
     `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(firstName)}`;
 
@@ -178,7 +208,8 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
             </div>
           ) : (
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4">
-              <div className="relative shrink-0">
+              {/* Profile Image with Upload Trigger */}
+              <div className="relative group shrink-0">
                 <div className="w-20 h-20 rounded-2xl overflow-hidden bg-white border-2 border-white shadow-md flex items-center justify-center">
                   <img
                     src={avatarUrl}
@@ -186,6 +217,26 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     className="w-full h-full object-cover"
                   />
                 </div>
+                
+                {/* Camera Overlay to Change Image */}
+                <label className="absolute inset-0 bg-black/40 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer text-white">
+                  <Camera className="w-5 h-5 mb-0.5" />
+                  <span className="text-[9px] font-semibold">Change</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                    disabled={uploadingImage}
+                  />
+                </label>
+
+                {uploadingImage && (
+                  <div className="absolute inset-0 bg-white/80 rounded-2xl flex items-center justify-center text-[10px] font-bold text-blue-600">
+                    Loading...
+                  </div>
+                )}
+
                 <span className="absolute bottom-0 right-0 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
               </div>
 
@@ -283,10 +334,6 @@ export function ProfileModal({ isOpen, onClose }: ProfileModalProps) {
                     <div className="h-9 w-full rounded-xl bg-slate-100" />
                   </div>
                 ))}
-                <div className="sm:col-span-2 space-y-2">
-                  <div className="h-2.5 w-28 rounded bg-slate-200/80" />
-                  <div className="h-14 w-full rounded-xl bg-slate-100" />
-                </div>
               </div>
             </div>
           ) : activeTab === "personal" ? (
