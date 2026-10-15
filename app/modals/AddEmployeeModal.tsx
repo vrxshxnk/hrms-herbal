@@ -23,6 +23,7 @@ const initialFormState = {
   status: "active",
   department_id: "",
   designation_id: "",
+  reporting_manager_id: "",
 };
 
 type Department = {
@@ -50,11 +51,15 @@ export const AddEmployeeModal = ({
   const [formData, setFormData] = useState(initialFormState);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [designations, setDesignation] = useState<Designation[]>([]);
+  const [employees, setEmployees] = useState<any[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingDesignations, setLoadingDesignations] = useState(false);
+  const [loadingEmployees, setLoadingEmployees] = useState(false);
+  
   const { token } = useAuth();
   const isEditMode = Boolean(employeeToEdit);
 
+  // Fetch Departments
   useEffect(() => {
     if (!isOpen || !token) return;
     const fetchDepartments = async () => {
@@ -64,9 +69,10 @@ export const AddEmployeeModal = ({
           headers: { Authorization: `Bearer ${token}` },
         });
         const result = await res.json();
-        console.log("Result hai ", result);
-        if (result.data.success && result.data.data) {
+        if (result.data?.success && result.data?.data) {
           setDepartments(result.data.data);
+        } else if (result.success && result.data) {
+          setDepartments(result.data);
         }
       } catch (error) {
         console.log("Failed to load department", error);
@@ -78,6 +84,41 @@ export const AddEmployeeModal = ({
     fetchDepartments();
   }, [isOpen, token]);
 
+
+  useEffect(() => {
+    if (!isOpen || !token || !formData.department_id) {
+      setEmployees([]);
+      return;
+    }
+
+    const fetchEmployeesByDept = async () => {
+      setLoadingEmployees(true);
+      try {
+        const res = await fetch(
+          `/api/v1/employee?department_id=${formData.department_id}`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+        const result = await res.json();
+        const empList = result?.data?.data || result?.data || result?.employees || [];
+        
+        // Agar edit mode hai, toh khud ko manager list se hata dein
+        const filteredList = isEditMode 
+          ? empList.filter((emp: any) => emp.id !== employeeToEdit?.id)
+          : empList;
+
+        setEmployees(Array.isArray(filteredList) ? filteredList : []);
+      } catch (error) {
+        console.log("Failed to load department employees", error);
+        setEmployees([]);
+      } finally {
+        setLoadingEmployees(false);
+      }
+    };
+
+    fetchEmployeesByDept();
+  }, [isOpen, token, formData.department_id, isEditMode, employeeToEdit]);
+
+  // Fetch Designations based on Department selection
   useEffect(() => {
     if (!isOpen || !token || !formData.department_id) {
       setDesignation([]);
@@ -91,10 +132,10 @@ export const AddEmployeeModal = ({
           { headers: { Authorization: `Bearer ${token}` } }
         );
         const result = await res.json();
-        if (result.data.data && result.data.success) {
-          setDesignation(result.data.data);
+        const desgData = result?.data?.data || result?.data || [];
+        if (Array.isArray(desgData)) {
+          setDesignation(desgData);
         }
-        console.log("result", result);
       } catch (error) {
         console.log("Failed to load designations", error);
         setDesignation([]);
@@ -105,6 +146,7 @@ export const AddEmployeeModal = ({
     fetchDesignation();
   }, [isOpen, token, formData.department_id]);
 
+  // Populate Form Data on Edit
   useEffect(() => {
     if (employeeToEdit) {
       setFormData({
@@ -124,6 +166,7 @@ export const AddEmployeeModal = ({
         status: employeeToEdit.status || "active",
         department_id: employeeToEdit.department_id || "",
         designation_id: employeeToEdit.designation_id || "",
+        reporting_manager_id: (employeeToEdit as any).reporting_manager_id || "",
       });
     } else {
       setFormData(initialFormState);
@@ -170,6 +213,7 @@ export const AddEmployeeModal = ({
       status: formData.status,
       department_id: formData.department_id || null,
       designation_id: formData.designation_id || null,
+      reporting_manager_id: formData.reporting_manager_id || null,
       employment_type: "permanent",
       employee_category: "staff",
       preferred_language: "english",
@@ -410,6 +454,35 @@ export const AddEmployeeModal = ({
               {designations.map((desg) => (
                 <option key={desg.id} value={desg.id}>
                   {desg.title}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Reporting Manager Dropdown */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Reporting Manager
+            </label>
+            <select
+              name="reporting_manager_id"
+              value={formData.reporting_manager_id}
+              onChange={handleChange}
+              disabled={!formData.department_id || loadingEmployees}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50 disabled:cursor-not-allowed"
+            >
+              <option value="">
+                {!formData.department_id
+                  ? "Select Department First"
+                  : loadingEmployees
+                  ? "Loading department employees..."
+                  : employees.length === 0
+                  ? "No employees found in this department"
+                  : "Select Reporting Manager (Optional)"}
+              </option>
+              {employees.map((emp) => (
+                <option key={emp.id} value={emp.id}>
+                  {emp.display_name || `${emp.first_name} ${emp.last_name}`} ({emp.employee_code})
                 </option>
               ))}
             </select>
