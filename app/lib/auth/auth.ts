@@ -31,7 +31,6 @@ export async function getAuthenticatedUser(request: Request): Promise<Authentica
 
   // Cast payload to your defined payload type
   const payload = (await verifyKeycloakToken(token)) as KeycloakJWTPayload;
-  console.log("payload yeh h :", payload);
 
   const realmRoles = payload.realm_access?.roles ?? [];
   const clientRoles = payload.resource_access?.["hrms-app"]?.roles ?? [];

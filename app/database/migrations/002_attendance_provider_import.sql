@@ -8,3 +8,9 @@ ALTER TABLE attendance_records
 
 CREATE INDEX IF NOT EXISTS idx_attendance_provider_status
   ON attendance_records (provider_status);
+
+-- Existing corrections must retain priority when this column is introduced.
+UPDATE attendance_records
+SET is_manual_override = TRUE
+WHERE source IN ('manual', 'manual_hr', 'web', 'mobile')
+   OR is_regularized = TRUE;

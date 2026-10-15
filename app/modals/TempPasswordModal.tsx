@@ -101,7 +101,7 @@ export const TempPasswordModal = ({isOpen,onClose,data}: TempPasswordModalProps)
                 className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl font-semibold text-xs transition-all ${
                   copied
                     ? "bg-emerald-600 text-white"
-                    : "bg-[#316AFF] hover:bg-[#2554d7] text-white"
+                    : "bg-[#24563E] hover:bg-[#19392C] text-white"
                 }`}
               >
                 {copied ? (

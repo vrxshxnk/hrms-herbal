@@ -50,8 +50,8 @@ export default function LeavePage() {
       value: totalRequests.toString(),
       total: totalRequests.toString(),
       percentage: 100,
-      textColor: "text-blue-500",
-      hexColor: "#3b82f6",
+      textColor: "text-brand-500",
+      hexColor: "#397052",
     },
     {
       title: "Approved Leaves",
@@ -76,18 +76,18 @@ export default function LeavePage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      <div className="flex flex-wrap gap-4 items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900">Leaves</h2>
-          <p className="text-sm text-gray-500">Verify leaves over here...</p>
+          <h1 className="text-2xl font-semibold text-slate-900">Time off</h1>
+          <p className="text-xs text-slate-500 mt-2">Plan time away, track requests, and review approvals.</p>
         </div>
         <button
           onClick={handleAddModal}
-          className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
+          className="flex items-center justify-center gap-2 bg-[#24563E] hover:bg-[#19392C] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors"
         >
           <Plus className="w-4 h-4" />
-          Add Leave
+          Request time off
         </button>
       </div>
 

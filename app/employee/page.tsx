@@ -95,14 +95,6 @@ const EmployeePage = () => {
        setIsPasswordModalOpen(true);
      }
   }
-  const cardStyles = [
-    "bg-blue-50/50 border-blue-100",
-    "bg-purple-50/50 border-purple-100",
-    "bg-emerald-50/50 border-emerald-100",
-    "bg-amber-50/50 border-amber-100",
-    "bg-rose-50/50 border-rose-100",
-    "bg-indigo-50/50 border-indigo-100",
-  ];
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -161,19 +153,15 @@ const EmployeePage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">
-            <span className="text-[#316AFF]">{total}</span> Employee
+            People directory <span className="ml-2 text-sm font-medium text-slate-500">{total} people</span>
           </h1>
-          <nav className="flex items-center gap-1 text-xs text-slate-400 mt-1">
-            <span>Dashboard</span>
-            <span>/</span>
-            <span className="text-slate-500 font-medium">Employee</span>
-          </nav>
+          <p className="text-xs text-slate-500 mt-2">The people behind your organization. Find details, manage records, and stay connected.</p>
         </div>
 
         {hasHrRole && (
           <button
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
+            className="flex items-center justify-center gap-2 bg-[#24563E] hover:bg-[#19392C] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
           >
             <Plus className="w-4 h-4" />
             Add Employee
@@ -199,13 +187,13 @@ const EmployeePage = () => {
             href="/employee"
             className={`text-sm font-semibold relative pb-2 md:pb-0 transition-colors ${
               activeTab === "employee"
-                ? "text-[#316AFF]"
+                ? "text-[#24563E]"
                 : "text-slate-400 hover:text-slate-600"
             }`}
           >
             Employee
             {activeTab === "employee" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#316AFF] rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#24563E] rounded-full" />
             )}
           </Link>
           <Link
@@ -213,13 +201,13 @@ const EmployeePage = () => {
             onClick={() => setActiveTab("leave")}
             className={`text-sm font-semibold relative pb-2 md:pb-0 transition-colors ${
               activeTab === "leave"
-                ? "text-[#316AFF]"
+                ? "text-[#24563E]"
                 : "text-slate-400 hover:text-slate-600"
             }`}
           >
             Leave Request
             {activeTab === "leave" && (
-              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#316AFF] rounded-full" />
+              <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#24563E] rounded-full" />
             )}
           </Link>
         </div>
@@ -227,20 +215,24 @@ const EmployeePage = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center border-r border-slate-200 pr-3 gap-1">
             <button
+              aria-label="Grid view"
+              aria-pressed={viewMode === "grid"}
               onClick={() => setViewMode("grid")}
               className={`p-1.5 rounded-lg transition-colors ${
                 viewMode === "grid"
-                  ? "text-[#316AFF] bg-slate-50"
+                  ? "text-[#24563E] bg-slate-50"
                   : "text-slate-400 hover:text-slate-600"
               }`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button
+              aria-label="List view"
+              aria-pressed={viewMode === "list"}
               onClick={() => setViewMode("list")}
               className={`p-1.5 rounded-lg transition-colors ${
                 viewMode === "list"
-                  ? "text-[#316AFF] bg-slate-50"
+                  ? "text-[#24563E] bg-slate-50"
                   : "text-slate-400 hover:text-slate-600"
               }`}
             >
@@ -255,7 +247,7 @@ const EmployeePage = () => {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search Employee"
-              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#316AFF]"
+              className="w-full pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#24563E]"
             />
           </div>
         </div>
@@ -263,20 +255,32 @@ const EmployeePage = () => {
 
       {loading ? (
         <div className="flex justify-center items-center py-20">
-          <Loader2 className="w-8 h-8 animate-spin text-[#316AFF]" />
+          <Loader2 className="w-8 h-8 animate-spin text-[#24563E]" />
         </div>
       ) : employees.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
           <p className="text-slate-500 font-medium">No employees found</p>
         </div>
+      ) : viewMode === "list" ? (
+        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-500"><tr>{["Employee", "Employee code", "Department", "Status", "Actions"].map(label => <th key={label} className="px-5 py-4">{label}</th>)}</tr></thead>
+            <tbody className="divide-y divide-slate-100">{employees.map(emp => <tr key={emp.id} className="hover:bg-slate-50/60">
+              <td className="px-5 py-4"><p className="font-semibold">{emp.display_name || `${emp.first_name} ${emp.last_name}`}</p><p className="text-slate-500 mt-1">{emp.work_email}</p></td>
+              <td className="px-5 py-4 font-mono">{emp.employee_code}</td>
+              <td className="px-5 py-4">{emp.department_name || "Not assigned"}</td>
+              <td className="px-5 py-4 capitalize">{emp.status}</td>
+              <td className="px-5 py-4"><div className="flex gap-4"><Link className="text-brand-600 font-semibold" href={`/docs/${emp.id}?name=${encodeURIComponent(emp.display_name || emp.first_name + " " + emp.last_name)}`}>Documents</Link>{hasHrRole && <><button className="text-brand-600 font-semibold" onClick={() => handleOpenEditModal(emp)}>Edit</button><button className="text-rose-600" onClick={() => handleDeleteEmp(emp.id)}>Delete</button></>}</div></td>
+            </tr>)}</tbody>
+          </table>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {employees.map((emp, index) => {
-            const cardStyle = cardStyles[index % cardStyles.length];
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-5">
+          {employees.map((emp) => {
             return (
               <div
                 key={emp.id}
-                className={`${cardStyle} rounded-2xl border border-slate-100 flex flex-col justify-between`}
+                className="bg-white rounded-xl border border-slate-200 flex flex-col justify-between"
               >
                 <div className="p-5 text-center">
                   <div className="flex items-center justify-between mb-4">
@@ -292,6 +296,7 @@ const EmployeePage = () => {
 
                     <div className="relative z-50">
                       <button
+                        aria-label={`Actions for ${emp.first_name} ${emp.last_name}`}
                         onClick={() =>
                           setOpenMenuId((prev) =>
                             prev === emp.id ? null : emp.id,
@@ -325,21 +330,15 @@ const EmployeePage = () => {
                     </div>
                   </div>
 
-                  <img
-                    src={
-                      emp.profile_photo_url ||
-                      `https://api.dicebear.com/7.x/avataaars/svg?seed=${emp.first_name}`
-                    }
-                    alt={emp.first_name}
-                    className="w-20 h-20 rounded-2xl object-cover mx-auto shadow-sm"
-                  />
+                  {emp.profile_photo_url ? <img src={emp.profile_photo_url} alt={emp.first_name} className="w-16 h-16 rounded-full object-cover mx-auto" /> : <div className="w-16 h-16 rounded-full mx-auto flex items-center justify-center bg-brand-50 text-brand-600 text-xl font-medium" aria-hidden="true">{emp.first_name?.[0]}{emp.last_name?.[0]}</div>}
 
                   <h3 className="text-base font-bold text-slate-900 mt-3">
                     {emp.display_name || `${emp.first_name} ${emp.last_name}`}
                   </h3>
-                  <p className="text-xs text-[#316AFF] font-medium">
+                  <p className="text-xs text-[#24563E] font-medium">
                     {emp.designation_title || "Employee"}
                   </p>
+                  <p className="mt-2 text-[10px] font-mono text-slate-500">{emp.employee_code}</p>
                 </div>
 
                 <div className="bg-slate-50/70 p-4 border-t border-slate-100 space-y-3 rounded-b-2xl">
@@ -360,11 +359,11 @@ const EmployeePage = () => {
 
                   <div className="pt-2 border-t border-dashed border-slate-200 space-y-1.5 text-[11px] text-slate-500">
                     <div className="flex items-center gap-2">
-                      <Mail className="w-3.5 h-3.5 text-[#316AFF]" />
+                      <Mail className="w-3.5 h-3.5 text-[#24563E]" />
                       <span className="truncate">{emp.work_email}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Phone className="w-3.5 h-3.5 text-[#316AFF]" />
+                      <Phone className="w-3.5 h-3.5 text-[#24563E]" />
                       <span>{emp.mobile_number}</span>
                     </div>
 
@@ -374,7 +373,7 @@ const EmployeePage = () => {
                           emp.display_name ||
                             `${emp.first_name}${emp.last_name}`,
                         )}`}
-                        className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-blue-50 text-[#316AFF] border border-blue-200 rounded-xl text-xs font-semibold transition-all shadow-2xs hover:border-blue-400 group"
+                        className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-white hover:bg-brand-50 text-[#24563E] border border-brand-200 rounded-xl text-xs font-semibold transition-all shadow-2xs hover:border-brand-400 group"
                       >
                         <Upload className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
                         <span>Upload Docs</span>

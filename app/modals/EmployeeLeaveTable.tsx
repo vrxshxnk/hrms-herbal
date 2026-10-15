@@ -196,7 +196,7 @@ export default function EmployeeLeaveTable({
             <input
               type="text"
               placeholder="Search..."
-              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+              className="px-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500/20"
             />
             <button className="px-3 py-1.5 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-700">
               Download Report
@@ -211,7 +211,7 @@ export default function EmployeeLeaveTable({
         <div className="w-full overflow-x-auto rounded-lg">
           <table className="w-full text-left border-collapse min-w-[1250px]">
             <thead>
-              <tr className="bg-blue-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+              <tr className="bg-brand-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-4">Leave Type</th>
                 <th className="py-3 px-4">Department</th>
@@ -286,7 +286,7 @@ export default function EmployeeLeaveTable({
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
-                          <span className="text-blue-600 font-bold">
+                          <span className="text-brand-600 font-bold">
                             {getBalanceDisplay(row).split("/")[0]?.trim()}
                           </span>
                           <span className="text-slate-400 font-normal">/</span>
@@ -433,7 +433,7 @@ export default function EmployeeLeaveTable({
                             <button
                             type="button"
                             onClick={() => setTrackingLeave(row)}
-                            className="px-2.5 py-1 text-xs font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded transition-colors flex items-center gap-1"
+                            className="px-2.5 py-1 text-xs font-medium text-brand-700 bg-brand-50 hover:bg-brand-100 rounded transition-colors flex items-center gap-1"
                             title="View tracking history"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -452,7 +452,7 @@ export default function EmployeeLeaveTable({
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-6 text-sm text-gray-500">
           <span>Showing 1 to {visibleData.length} entries</span>
           <div className="flex items-center gap-1">
-            <button className="px-3 py-1 rounded border bg-blue-600 text-white font-medium">
+            <button className="px-3 py-1 rounded border bg-brand-600 text-white font-medium">
               1
             </button>
           </div>

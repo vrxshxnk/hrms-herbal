@@ -241,7 +241,9 @@ export default function OrgChartPage() {
   }
 
   return (
-    <div className="p-6 w-full h-[calc(100vh-80px)] flex gap-4">
+    <section className="space-y-6">
+      <div><h1 className="text-2xl font-semibold tracking-tight">Organization</h1><p className="mt-2 text-xs text-slate-500">Explore your teams and reporting lines. Select a person to view their details.</p></div>
+    <div className="w-full h-[calc(100vh-180px)] min-h-[500px] flex flex-col lg:flex-row gap-4">
       <div className="flex-1 flex flex-col bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden shadow-inner relative">
         <div className="flex-1 relative">
           <ReactFlow
@@ -255,12 +257,12 @@ export default function OrgChartPage() {
           >
             <Background color="#cbd5e1" gap={20} size={1} />
             <Controls className="!bg-white !border-slate-200 !shadow-md" />
-            <MiniMap nodeColor="#316AFF" className="!bg-white !border-slate-200 !shadow-md" />
+            <MiniMap nodeColor="#24563E" className="!bg-white !border-slate-200 !shadow-md" />
           </ReactFlow>
         </div>
 
         {/* Legend footer — matches the reference's tier key */}
-        <div className="flex items-center gap-6 px-5 py-3 bg-white border-t border-slate-200 text-xs text-slate-500">
+        <div className="flex flex-wrap items-center gap-4 px-5 py-3 bg-white border-t border-slate-200 text-xs text-slate-500">
           {(Object.keys(TIER_PALETTE) as OrgTier[]).map((tier) => (
             <div key={tier} className="flex items-center gap-1.5">
               <span
@@ -274,10 +276,10 @@ export default function OrgChartPage() {
       </div>
 
       {selectedNode && (
-        <div className="w-80 bg-white border border-slate-200 rounded-2xl shadow-sm p-5 overflow-y-auto shrink-0">
+        <div className="w-full lg:w-80 max-h-[50vh] lg:max-h-none bg-white border border-slate-200 rounded-xl p-5 overflow-y-auto shrink-0">
           <div className="flex items-center justify-between mb-4">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Employee Details</span>
-            <button onClick={() => setSelectedId(null)} className="text-slate-400 hover:text-slate-600">
+            <button aria-label="Close employee details" onClick={() => setSelectedId(null)} className="text-slate-400 hover:text-slate-600">
               <X size={16} />
             </button>
           </div>
@@ -357,5 +359,6 @@ export default function OrgChartPage() {
         </div>
       )}
     </div>
+    </section>
   );
 }

@@ -121,7 +121,7 @@ export const LeaveTrackModal: React.FC<LeaveTrackModalProps> = ({
       case "Withdrawn":
         return <RotateCcw className="w-5 h-5 text-slate-600" />;
       case "Created":
-        return <CheckCircle2 className="w-5 h-5 text-blue-600" />;
+        return <CheckCircle2 className="w-5 h-5 text-brand-600" />;
       default:
         return <Clock className="w-5 h-5 text-amber-500 animate-pulse" />;
     }
@@ -156,7 +156,7 @@ export const LeaveTrackModal: React.FC<LeaveTrackModalProps> = ({
           <div className="bg-gray-50 border border-gray-200/80 rounded-xl p-4 space-y-3">
             <div className="grid grid-cols-2 gap-3 text-xs">
               <div className="flex items-center gap-2">
-                <User className="w-4 h-4 text-blue-500 shrink-0" />
+                <User className="w-4 h-4 text-brand-500 shrink-0" />
                 <div className="truncate">
                   <span className="text-gray-400 block text-[10px] uppercase font-semibold">Applicant</span>
                   <span className="font-medium text-gray-800 truncate block">

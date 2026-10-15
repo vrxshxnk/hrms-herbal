@@ -187,19 +187,19 @@ export default function AdvanceSalaryPage() {
 };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Advance Salary & Loans</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Dashboard / <span className="text-[#316AFF] font-medium">Salary Requests</span>
+            Request an advance and follow its approval and repayment status.
           </p>
         </div>
 
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#316AFF] hover:bg-blue-600 text-white rounded-xl text-xs font-medium transition-all shadow-sm shadow-blue-200"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-[#24563E] hover:bg-brand-600 text-white rounded-xl text-xs font-medium transition-all shadow-sm shadow-brand-200"
         >
           <Plus className="w-4 h-4" />
           <span>New Advance Request</span>
@@ -209,7 +209,7 @@ export default function AdvanceSalaryPage() {
       {/* Summary Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#316AFF] flex items-center justify-center">
+          <div className="w-12 h-12 rounded-xl bg-brand-50 text-[#24563E] flex items-center justify-center">
             <Banknote className="w-6 h-6" />
           </div>
           <div>
@@ -251,7 +251,7 @@ export default function AdvanceSalaryPage() {
 
         {loading ? (
           <div className="p-12 text-center text-slate-400 text-xs flex flex-col items-center gap-2">
-            <Loader2 className="w-6 h-6 animate-spin text-[#316AFF]" />
+            <Loader2 className="w-6 h-6 animate-spin text-[#24563E]" />
             <span>Loading request records...</span>
           </div>
         ) : requests.length === 0 ? (
@@ -329,7 +329,7 @@ export default function AdvanceSalaryPage() {
                       {(isManager || isHR || isFinance) && (
                         <td className="p-4 text-right">
                           {actionLoadingId === req.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-[#316AFF] inline" />
+                            <Loader2 className="w-4 h-4 animate-spin text-[#24563E] inline" />
                           ) : (
                             <div className="flex items-center justify-end gap-1.5">
                               {/* Manager Action */}
@@ -377,7 +377,7 @@ export default function AdvanceSalaryPage() {
                           <>
                               <button
                                  onClick={() => handleApprovalAction(req.id, "finance", "Disbursed")}
-                                 className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#316AFF] hover:bg-blue-100 transition-colors font-medium text-[11px]"
+                                 className="px-2.5 py-1 rounded-lg bg-brand-50 text-[#24563E] hover:bg-brand-100 transition-colors font-medium text-[11px]"
                               >
                                Disburse
                             </button>
@@ -430,7 +430,7 @@ export default function AdvanceSalaryPage() {
                 <select
                   value={requestType}
                   onChange={(e) => setRequestType(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#316AFF]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#24563E]"
                 >
                   <option value="advance">Salary Advance (1 Month)</option>
                   <option value="loan">Personal Loan (Multi-Month)</option>
@@ -445,7 +445,7 @@ export default function AdvanceSalaryPage() {
                   placeholder="e.g. 15000"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#316AFF]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#24563E]"
                 />
               </div>
 
@@ -457,7 +457,7 @@ export default function AdvanceSalaryPage() {
                   max="24"
                   value={tenure}
                   onChange={(e) => setTenure(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#316AFF]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#24563E]"
                 />
               </div>
 
@@ -469,7 +469,7 @@ export default function AdvanceSalaryPage() {
                   placeholder="State the purpose of this request..."
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#316AFF]"
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-[#24563E]"
                 />
               </div>
 
@@ -484,7 +484,7 @@ export default function AdvanceSalaryPage() {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-4 py-2 bg-[#316AFF] hover:bg-blue-600 text-white rounded-xl font-medium flex items-center gap-2"
+                  className="px-4 py-2 bg-[#24563E] hover:bg-brand-600 text-white rounded-xl font-medium flex items-center gap-2"
                 >
                   {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Submit Request

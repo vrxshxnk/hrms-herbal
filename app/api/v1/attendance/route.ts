@@ -130,7 +130,7 @@ export async function GET(request: Request) {
 
     let strategyFn: (userId: string, monthStr: string) => { query: string; params: any[] };
 
-    if (user.system_role === "hr" || user.system_role === "hr_admin") {
+    if (["hr", "hr_admin", "system_admin"].includes(user.system_role)) {
       strategyFn = attendanceStrategies["attendance:read:all"];
     } else if (user.system_role === "manager") {
       strategyFn = attendanceStrategies["attendance:read:team"];
@@ -167,7 +167,7 @@ export async function POST(request: Request) {
 
  
     const isSelf = data.employee_id === user.id;
-    const isHR = user.system_role === "hr" || user.system_role === "hr_admin";
+    const isHR = ["hr", "hr_admin", "system_admin"].includes(user.system_role);
 
     if (!isSelf && !isHR) {
       return apiError("FORBIDDEN", "You are only permitted to record or adjust your own attendance", 403);

@@ -22,7 +22,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={jakarta.variable}>
-      <body className="font-sans antialiased bg-[#F8FAFC] text-[#1E293B]">
+      <body className="font-sans antialiased">
         <AuthProvider>
           <DashboardLayout>{children}</DashboardLayout>
         </AuthProvider>

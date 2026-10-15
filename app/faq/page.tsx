@@ -27,81 +27,29 @@ interface FAQQueryItem {
 }
 
 const faqData = [
-  {
-    category: "General Questions",
-    items: [
-      {
-        id: "gen-1",
-        question: "What is your return policy?",
-        answer:
-          "We offer a 30-day money-back guarantee for all eligible products. Items must be returned in their original condition.",
-      },
-      {
-        id: "gen-2",
-        question: "How long does shipping take?",
-        answer:
-          "Standard shipping takes 3-5 business days. Express options are available at checkout.",
-      },
-      {
-        id: "gen-3",
-        question: "Do you offer customer support?",
-        answer:
-          "Yes, our dedicated support team is available 24/7 via live chat, email, or telephone.",
-      },
-    ],
-  },
-  {
-    category: "Manage Account",
-    items: [
-      {
-        id: "acc-1",
-        question: "How do I update my account information?",
-        answer:
-          "Navigate to Account Settings in your profile dashboard to update your personal details and preferences.",
-      },
-      {
-        id: "acc-2",
-        question: "How can I change my password?",
-        answer:
-          "Go to Security Settings under your account, click 'Change Password', and follow the instructions sent to your email.",
-      },
-      {
-        id: "acc-3",
-        question: "How do I delete my account?",
-        answer:
-          "You can request account deletion under Privacy Settings. Please note this action is permanent.",
-      },
-    ],
-  },
-  {
-    category: "Privacy & Security",
-    items: [
-      {
-        id: "priv-1",
-        question: "How is my personal data protected?",
-        answer:
-          "We use end-to-end 256-bit SSL encryption and follow strict compliance protocols to ensure your data is secure.",
-      },
-      {
-        id: "priv-2",
-        question: "Can I control who sees my information?",
-        answer:
-          "Yes, you can customize your visibility and sharing settings in the Privacy Control tab.",
-      },
-      {
-        id: "priv-3",
-        question: "How can I delete my data?",
-        answer:
-          "Submit a data deletion request through our privacy portal or contact privacy@yourdomain.com directly.",
-      },
-    ],
-  },
+  { category: "Time & attendance", items: [
+    { id: "attendance-1", question: "How do I check my attendance?", answer: "Open Attendance from People & time in the sidebar. Choose the month and review the daily status codes. P means present, A means absent, and WO means week off. Hover over a recorded day for shift and timing details." },
+    { id: "attendance-2", question: "How does HR import the monthly register?", answer: "In Attendance, choose Import register and select the provider's .xls or .xlsx Performance Register. Preview the file first. Review unmatched pay codes, set up missing mappings, and preview again before importing matched rows." },
+    { id: "attendance-3", question: "Can an attendance entry be corrected?", answer: "Use Manual entry in Attendance to select an employee and date, then enter the status, shift, check-in, check-out, total work hours, and overtime. Saved manual entries take priority over provider imports. Contact HR if you do not have permission to save a correction." },
+  ] },
+  { category: "Requests & approvals", items: [
+    { id: "requests-1", question: "How do I request time off?", answer: "Open Time off and select Request time off. Complete the leave type, dates, and reason, then submit. You can follow your request and its approval status in the request list." },
+    { id: "requests-2", question: "Where do I submit expense receipts?", answer: "Open Reimbursements, choose New Expense Claim, and complete the expense details. Attach the supporting receipt and submit the claim. Track approvals and payment status on the same page." },
+    { id: "requests-3", question: "How do I request a salary advance?", answer: "Open Salary advances from Requests. Choose New Advance Request and complete the form. Your request history shows the current status. Contact HR for your organization's eligibility and repayment policies." },
+  ] },
+  { category: "Your people workspace", items: [
+    { id: "workspace-1", question: "Where can I find my employee code?", answer: "Open People directory and search for your name. Your HRMS employee code appears on your card and in list view. A provider Pay Code can be different; HR links the two through Pay code mapping in Attendance." },
+    { id: "workspace-2", question: "How can I update my details or upload documents?", answer: "Find your record in People directory. HR can edit employee details from the actions menu. Use Documents or Upload Docs to open the document screen for the selected employee." },
+    { id: "workspace-3", question: "Who can help with access or password problems?", answer: "Contact your HR team or system administrator. Sign-in uses your company account, and access to actions depends on your assigned role. Do not share passwords in a help request." },
+  ] },
 ];
 
 export default function FAQPage() {
   const { token, roles, hasRole } = useAuth();
   const isHR = (roles && roles.includes("hr")) || (hasRole && hasRole("hr"));
   const [openItems, setOpenItems] = useState<Record<string, boolean>>({});
+  const [searchQuery, setSearchQuery] = useState("");
+  const filteredFaqs = faqData.map(group => ({ ...group, items: group.items.filter(item => `${item.question} ${item.answer}`.toLowerCase().includes(searchQuery.trim().toLowerCase())) })).filter(group => group.items.length > 0);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -238,7 +186,7 @@ export default function FAQPage() {
       case "pending":
         return "bg-amber-50 text-amber-700 border-amber-200";
       case "in_review":
-        return "bg-blue-50 text-blue-700 border-blue-200";
+        return "bg-brand-50 text-brand-700 border-brand-200";
       case "resolved":
         return "bg-emerald-50 text-emerald-700 border-emerald-200";
       case "closed":
@@ -249,22 +197,22 @@ export default function FAQPage() {
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8 bg-background">
+    <div className="space-y-6">
       {/* 1. Header & Breadcrumbs */}
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 tracking-tight">FAQ</h1>
+        <h1 className="text-2xl font-semibold text-slate-900 tracking-tight">Help center</h1>
         <p className="text-xs font-medium text-slate-400 mt-1">
-          Dashboard <span className="mx-1">/</span> <span className="text-slate-600">FAQ</span>
+          Practical guidance for your everyday workspace.
         </p>
       </div>
 
       {/* 2. HR Query Management Panel (Visible only to HR role) */}
       {isHR && (
-        <div className="bg-white border border-blue-100 rounded-2xl p-6 shadow-sm space-y-5">
+        <div className="bg-white border border-brand-100 rounded-2xl p-6 shadow-sm space-y-5">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                <ShieldCheck className="w-5 h-5 text-blue-600" />
+              <div className="w-9 h-9 rounded-xl bg-brand-50 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-5 h-5 text-brand-600" />
               </div>
               <div>
                 <h3 className="text-base font-bold text-slate-900">User Inquiries (HR Portal)</h3>
@@ -276,7 +224,7 @@ export default function FAQPage() {
             <button
               onClick={fetchQueries}
               disabled={isLoadingQueries}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700 bg-blue-50 hover:bg-blue-100/80 px-3 py-2 rounded-xl transition-colors self-start sm:self-auto"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100/80 px-3 py-2 rounded-xl transition-colors self-start sm:self-auto"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoadingQueries ? "animate-spin" : ""}`} />
               <span>Refresh</span>
@@ -285,7 +233,7 @@ export default function FAQPage() {
 
           {isLoadingQueries ? (
             <div className="py-12 text-center space-y-2">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto" />
+              <Loader2 className="w-6 h-6 animate-spin text-brand-600 mx-auto" />
               <p className="text-xs text-slate-400">Loading submitted queries...</p>
             </div>
           ) : queries.length === 0 ? (
@@ -323,7 +271,7 @@ export default function FAQPage() {
                         value={item.status}
                         disabled={updatingId === item.id}
                         onChange={(e) => handleStatusChange(item.id, e.target.value)}
-                        className="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:border-blue-500"
+                        className="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1 text-slate-700 font-medium focus:outline-none focus:border-brand-500"
                       >
                         <option value="pending">Pending</option>
                         <option value="in_review">In Review</option>
@@ -352,14 +300,13 @@ export default function FAQPage() {
       )}
 
       {/* 3. Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-400 via-blue-500 to-blue-600 px-6 py-12 sm:py-14 text-center text-white shadow-md">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-blue-400/20 via-transparent to-transparent pointer-events-none" />
+      <div className="relative overflow-hidden rounded-xl bg-brand-800 px-6 py-10 text-center text-white">
         
         <div className="relative z-10 max-w-2xl mx-auto space-y-2">
           <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Have a question? We&apos;re ready to help!
+            How can we help?
           </h2>
-          <p className="text-sm text-blue-100 font-normal">
+          <p className="text-sm text-brand-100 font-normal">
             Or choose a section to find what you need in seconds.
           </p>
 
@@ -368,8 +315,11 @@ export default function FAQPage() {
               <Search className="absolute left-4 w-4 h-4 text-slate-400 pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search articles..."
-                className="w-full pl-11 pr-4 py-3 bg-white text-slate-800 text-sm placeholder-slate-400 rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-blue-400 transition-all"
+                aria-label="Search help articles"
+                value={searchQuery}
+                onChange={event => setSearchQuery(event.target.value)}
+                placeholder="Search attendance, leave, expenses..."
+                className="w-full pl-11 pr-4 py-3 bg-white text-slate-800 text-sm placeholder-slate-400 rounded-xl shadow-md focus:outline-none focus:ring-2 focus:ring-brand-400 transition-all"
               />
             </div>
           </div>
@@ -381,7 +331,8 @@ export default function FAQPage() {
         
         {/* Left Column (FAQ Sections & Contact Banner) */}
         <div className="lg:col-span-8 space-y-8">
-          {faqData.map((group) => (
+          {filteredFaqs.length === 0 && <p role="status" className="p-6 bg-white border border-slate-200 rounded-xl text-sm text-slate-500">No answers found. Try a different search or send HR a question.</p>}
+          {filteredFaqs.map((group) => (
             <div key={group.category} className="space-y-3">
               <h3 className="text-base font-bold text-slate-800">{group.category}</h3>
               <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs divide-y divide-slate-100 overflow-hidden">
@@ -390,6 +341,7 @@ export default function FAQPage() {
                   return (
                     <div key={item.id} className="transition-colors">
                       <button
+                        aria-expanded={isOpen}
                         onClick={() => toggleAccordion(item.id)}
                         className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50/80 transition-all group"
                       >
@@ -398,7 +350,7 @@ export default function FAQPage() {
                         </span>
                         <ChevronDown
                           className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-200 ${
-                            isOpen ? "rotate-180 text-blue-600" : ""
+                            isOpen ? "rotate-180 text-brand-600" : ""
                           }`}
                         />
                       </button>
@@ -415,49 +367,7 @@ export default function FAQPage() {
             </div>
           ))}
 
-          {/* Contact Details Card */}
-          <div className="bg-[#FFFDF3] border border-[#FDEECA] rounded-2xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-xs">
-            <div className="space-y-6 w-full md:w-auto">
-              <h4 className="text-base font-bold text-slate-900">You still have a question?</h4>
-
-              <div className="flex flex-col sm:flex-row gap-6 sm:gap-8">
-                {/* Phone Call block */}
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <Phone className="w-5 h-5 text-emerald-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">+(01) 123 456 7890</p>
-                    <p className="text-xs text-slate-400">Always here, ready to help</p>
-                  </div>
-                </div>
-
-                {/* Vertical Divider */}
-                <div className="hidden sm:block w-[1px] bg-amber-200/50 self-stretch" />
-
-                {/* Email block */}
-                <div className="flex items-center gap-3.5">
-                  <div className="w-10 h-10 rounded-full bg-cyan-500/10 flex items-center justify-center shrink-0">
-                    <Mail className="w-5 h-5 text-cyan-500" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">support-herbal-creations@gmail.com</p>
-                    <p className="text-xs text-slate-400">Looking for a quick answer? Let&apos;s connect</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Graphic Illustration */}
-            <div className="relative shrink-0 w-36 h-28 hidden md:flex items-center justify-center">
-              <svg className="w-full h-full" viewBox="0 0 160 140" fill="none">
-                <path d="M70 110 C70 80, 90 60, 120 60 C140 60, 150 80, 150 110" fill="#2563EB" />
-                <path d="M40 90 A 35 35 0 0 1 100 90 L 70 90 Z" fill="#EF4444" />
-                <path d="M70 90 A 35 35 0 0 1 70 30 L 70 90 Z" fill="#10B981" />
-                <path d="M70 90 A 35 35 0 0 1 110 60 L 70 90 Z" fill="#F59E0B" />
-              </svg>
-            </div>
-          </div>
+          <div className="rounded-xl border border-brand-100 bg-brand-50 p-6"><h3 className="text-sm font-semibold">Need a hand from HR?</h3><p className="mt-2 text-xs leading-relaxed text-slate-600">Send a question using the form on this page. Include enough detail for your HR team to help, but never include passwords or sensitive account information.</p></div>
         </div>
 
         {/* Right Column (Question Form & Support Live Chat Box) */}
@@ -500,7 +410,7 @@ export default function FAQPage() {
                     value={formData.name}
                     onChange={handleInputChange}
                     placeholder="Enter your name"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
 
@@ -513,7 +423,7 @@ export default function FAQPage() {
                     value={formData.email}
                     onChange={handleInputChange}
                     placeholder="Enter your email"
-                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                   />
                 </div>
               </div>
@@ -527,7 +437,7 @@ export default function FAQPage() {
                   value={formData.subject}
                   onChange={handleInputChange}
                   placeholder="Enter your subject"
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500"
                 />
               </div>
 
@@ -540,14 +450,14 @@ export default function FAQPage() {
                   value={formData.question}
                   onChange={handleInputChange}
                   placeholder="Type your question here..."
-                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                  className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-xs placeholder-slate-400 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 resize-none"
                 />
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
+                className="w-full py-2.5 bg-brand-600 hover:bg-brand-700 disabled:bg-brand-400 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2"
               >
                 {isSubmitting ? (
                   <>
@@ -561,46 +471,6 @@ export default function FAQPage() {
             </form>
           </div>
 
-          {/* Need More Help Avatar Card */}
-          <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-6 text-center space-y-4">
-            {/* Avatar Group */}
-            <div className="flex justify-center -space-x-2 overflow-hidden py-1">
-              <img
-                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=100"
-                alt="Support member"
-              />
-              <img
-                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=100"
-                alt="Support member"
-              />
-              <img
-                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&q=80&w=100"
-                alt="Support member"
-              />
-              <img
-                className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=100"
-                alt="Support member"
-              />
-            </div>
-
-            <div>
-              <h4 className="text-base font-bold text-slate-900">Need more help?</h4>
-              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-                Can&apos;t find your answer here? Chat with our support team anytime.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-xs transition-colors"
-            >
-              Chat with us
-            </button>
-          </div>
 
         </div>
 

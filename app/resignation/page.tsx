@@ -164,25 +164,25 @@ export default function ResignationPage() {
   const approvedCount = requests.filter((r) =>["Clearance_In_Progress", "Completed", "Manager_Approved"].includes(r.final_status)).length;
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 p-6 space-y-6">
+    <div className="text-slate-800 space-y-6">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Resignation & Exit Management
+            Exit & offboarding
           </h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            Dashboard / <span className="text-blue-600 font-medium">Resignations</span>
+            Manage resignation requests, approvals, and clearance in one place.
           </p>
         </div>
 
         {/* Regular Employees only see Submit Button */}
         <button
           onClick={() => setIsModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors text-sm"
+          className="inline-flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-medium px-4 py-2.5 rounded-xl shadow-sm transition-colors text-sm"
         >
           <Plus className="w-4 h-4" />
-          New Resignation Claim
+          Submit resignation
         </button>
       </div>
 
@@ -190,7 +190,7 @@ export default function ResignationPage() {
       {isPrivilegedUser && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm flex items-center gap-4">
-            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+            <div className="p-3 bg-brand-50 text-brand-600 rounded-xl">
               <FileText className="w-6 h-6" />
             </div>
             <div>
@@ -240,7 +240,7 @@ export default function ResignationPage() {
             onClick={() => setActiveTab("self")}
             className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
               activeTab === "self"
-                ? "bg-white text-blue-600 shadow-sm border border-slate-100"
+                ? "bg-white text-brand-600 shadow-sm border border-slate-100"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
@@ -251,7 +251,7 @@ export default function ResignationPage() {
               onClick={() => setActiveTab("team")}
               className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
                 activeTab === "team"
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-100"
+                  ? "bg-white text-brand-600 shadow-sm border border-slate-100"
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -263,7 +263,7 @@ export default function ResignationPage() {
               onClick={() => setActiveTab("all")}
               className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
                 activeTab === "all"
-                  ? "bg-white text-blue-600 shadow-sm border border-slate-100"
+                  ? "bg-white text-brand-600 shadow-sm border border-slate-100"
                   : "text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -286,7 +286,7 @@ export default function ResignationPage() {
 
         {isLoading ? (
           <div className="flex items-center justify-center p-12 text-slate-400 text-sm">
-            <Loader2 className="w-5 h-5 animate-spin mr-2 text-blue-600" />
+            <Loader2 className="w-5 h-5 animate-spin mr-2 text-brand-600" />
             Loading records...
           </div>
         ) : requests.length === 0 ? (
@@ -317,7 +317,7 @@ export default function ResignationPage() {
                       <div>
                         {/* Employee Name Header when Manager/HR views */}
                         {item.first_name && (
-                          <p className="text-xs font-bold text-blue-600 mb-0.5">
+                          <p className="text-xs font-bold text-brand-600 mb-0.5">
                             {item.first_name} {item.last_name}{" "}
                             <span className="text-slate-400 font-normal">
                               ({item.employee_code})
@@ -375,7 +375,7 @@ export default function ResignationPage() {
                       <span
                         className={`px-3 py-1.5 rounded-lg border ${
                           item.final_status === "Completed"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
+                            ? "bg-brand-50 text-brand-700 border-brand-200"
                             : item.final_status === "Rejected"
                             ? "bg-rose-50 text-rose-700 border-rose-200"
                             : "bg-slate-50 text-slate-600 border-slate-200"
@@ -527,7 +527,7 @@ export default function ResignationPage() {
                       proposed_last_working_day: e.target.value,
                     })
                   }
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 />
               </div>
 
@@ -546,7 +546,7 @@ export default function ResignationPage() {
                       notice_period_days: parseInt(e.target.value) || 30,
                     })
                   }
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 />
               </div>
 
@@ -562,7 +562,7 @@ export default function ResignationPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, reason: e.target.value })
                   }
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 />
               </div>
 
@@ -577,7 +577,7 @@ export default function ResignationPage() {
                   onChange={(e) =>
                     setFormData({ ...formData, comments: e.target.value })
                   }
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-500 transition-all"
                 />
               </div>
 
@@ -592,7 +592,7 @@ export default function ResignationPage() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-50"
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white rounded-xl shadow-sm transition-colors disabled:opacity-50"
                 >
                   {isSubmitting && (
                     <Loader2 className="w-3.5 h-3.5 animate-spin" />

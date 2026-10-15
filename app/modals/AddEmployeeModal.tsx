@@ -265,7 +265,7 @@ export const AddEmployeeModal = ({
               placeholder="Enter full name"
               value={formData.fullName}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#316AFF]"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#24563E]"
             />
           </div>
 
@@ -280,7 +280,7 @@ export const AddEmployeeModal = ({
               placeholder="example@email.com"
               value={formData.work_email}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#316AFF]"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#24563E]"
             />
           </div>
 
@@ -295,7 +295,7 @@ export const AddEmployeeModal = ({
               placeholder="+919876543210"
               value={formData.mobile_number}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#316AFF]"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#24563E]"
             />
           </div>
 
@@ -308,7 +308,7 @@ export const AddEmployeeModal = ({
                 name="gender"
                 value={formData.gender}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E]"
               >
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -326,7 +326,7 @@ export const AddEmployeeModal = ({
                 required
                 value={formData.date_of_birth}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E]"
               />
             </div>
           </div>
@@ -340,7 +340,7 @@ export const AddEmployeeModal = ({
                 name="marital_status"
                 value={formData.marital_status}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E]"
               >
                 <option value="single">Single</option>
                 <option value="married">Married</option>
@@ -358,7 +358,7 @@ export const AddEmployeeModal = ({
                 required
                 value={formData.joining_date}
                 onChange={handleChange}
-                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E]"
               />
             </div>
           </div>
@@ -372,7 +372,7 @@ export const AddEmployeeModal = ({
               value={formData.department_id}
               onChange={handleChange}
               disabled={loadingDepartments}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E] disabled:bg-slate-50"
             >
               <option value="">
                 {loadingDepartments
@@ -396,7 +396,7 @@ export const AddEmployeeModal = ({
               value={formData.designation_id}
               onChange={handleChange}
               disabled={!formData.department_id || loadingDesignations}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF] disabled:bg-slate-50 disabled:cursor-not-allowed"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E] disabled:bg-slate-50 disabled:cursor-not-allowed"
             >
               <option value="">
                 {!formData.department_id
@@ -423,7 +423,7 @@ export const AddEmployeeModal = ({
               name="status"
               value={formData.status}
               onChange={handleChange}
-              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#316AFF]"
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E]"
             >
               <option value="active">Active</option>
               <option value="on_leave">On Leave</option>
@@ -436,7 +436,7 @@ export const AddEmployeeModal = ({
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-[#316AFF] hover:bg-[#2554d7] text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-[#24563E] hover:bg-[#19392C] text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               {loading

@@ -232,11 +232,11 @@ export const createAttendanceRecordSchema = z.object({
   status: z.enum(["present", "absent", "half_day", "on_leave", "week_off", "holiday", "provider_unknown"]),
   check_in_time: z.preprocess(
     emptyStringToUndefined,
-    z.string().datetime("Invalid ISO timestamp").optional().nullable(),
+    z.string().datetime({ offset: true, message: "Invalid ISO timestamp" }).optional().nullable(),
   ),
   check_out_time: z.preprocess(
     emptyStringToUndefined,
-    z.string().datetime("Invalid ISO timestamp").optional().nullable(),
+    z.string().datetime({ offset: true, message: "Invalid ISO timestamp" }).optional().nullable(),
   ),
   working_hours: z
     .number()

@@ -294,7 +294,7 @@ const AddLeaveModal = ({ isOpen, onClose, onSuccess }: AddLeaveModalProps) => {
                       className={`p-1.5 rounded-lg ${
                         halfDayType === "second_half"
                           ? "bg-[#10b981] text-white"
-                          : "bg-indigo-100 text-indigo-600"
+                          : "bg-brand-100 text-brand-600"
                       }`}
                     >
                       <Moon className="w-4 h-4" />

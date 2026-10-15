@@ -24,8 +24,8 @@ export type OrgNodeData = {
 
 // Color by hierarchy tier — matches the legend shown under the chart.
 export const TIER_PALETTE: Record<OrgTier, { dot: string; avatarBg: string; avatarText: string; label: string }> = {
-  leader: { dot: "#8B5CF6", avatarBg: "#EDE9FE", avatarText: "#6D28D9", label: "Company leader" },
-  manager: { dot: "#3B82F6", avatarBg: "#DBEAFE", avatarText: "#1D4ED8", label: "Manager" },
+  leader: { dot: "#8C7953", avatarBg: "#F3EFE4", avatarText: "#705F3F", label: "Company leader" },
+  manager: { dot: "#397052", avatarBg: "#DCE9DF", avatarText: "#1C4633", label: "Manager" },
   ic: { dot: "#94A3B8", avatarBg: "#F1F5F9", avatarText: "#475569", label: "Individual contributor" },
 };
 

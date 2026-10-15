@@ -2,13 +2,8 @@
 
 import {
   Menu,
-  Search,
   Bell,
-  Calendar,
-  MessageCircle,
   User,
-  User2,
-  CreditCard,
   CircleHelp,
   LogOut,
   UserMinus,
@@ -22,6 +17,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import WorkspaceSearch from "./WorkspaceSearch";
 
 type HeaderProps = {
   toggleSidebar: () => void;
@@ -46,6 +42,18 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const previousUnreadCount = useRef<number>(0);
+  const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const close = (event: PointerEvent) => {
+      if (!headerRef.current?.contains(event.target as Node)) { setIsUserOpen(false); setIsNotifOpen(false); }
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setIsUserOpen(false); setIsNotifOpen(false); }
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", close); document.removeEventListener("keydown", onKey); };
+  }, []);
 
   const playChimeSound = useCallback(() => {
     try {
@@ -110,13 +118,14 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     }
-  }, [playChimeSound]);
+  }, [playChimeSound, token]);
 
   useEffect(() => {
+    if (!token) return;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 15000); 
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, token]);
 
   const handleMarkAsRead = async (id: string) => {
     try {
@@ -195,54 +204,44 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
         return <XCircle className="w-4 h-4 text-rose-500 shrink-0" />;
       case "leave_requested":
       case "leave_withdrawn":
-        return <CalendarDays className="w-4 h-4 text-indigo-500 shrink-0" />;
+        return <CalendarDays className="w-4 h-4 text-brand-500 shrink-0" />;
       default:
-        return <Clock className="w-4 h-4 text-blue-500 shrink-0" />;
+        return <Clock className="w-4 h-4 text-brand-500 shrink-0" />;
     }
   };
 
   return (
-    <header className="w-full bg-white border-b border-slate-100 px-4 py-3 flex items-center justify-between gap-4 relative z-40">
+    <header ref={headerRef} className="workspace-header">
       {/* Left side: Mobile Toggle & Search */}
-      <div className="flex items-center gap-4 flex-1">
+      <div className="flex items-center gap-3 flex-1 min-w-0">
         <button
           onClick={toggleSidebar}
-          className="text-slate-600 hover:text-slate-900 focus:outline-none"
+          aria-label="Open navigation"
+          aria-controls="workspace-navigation"
+          className="icon-button lg:hidden"
         >
           <Menu className="w-5 h-5" />
         </button>
 
-        <div className="hidden md:flex items-center relative w-full max-w-sm">
-          <Search className="w-4 h-4 absolute left-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Search anything's"
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-full text-xs text-slate-700 placeholder-slate-400 focus:outline-none focus:border-[#316AFF] transition-colors"
-          />
-        </div>
+        <WorkspaceSearch />
       </div>
 
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3 sm:gap-6 shrink-0">
         <div className="hidden lg:flex items-center gap-5 text-xs font-semibold text-slate-500">
-          <a href="#" className="hover:text-slate-900">
-            Reports & Analytics
-          </a>
-          <a href="#" className="hover:text-slate-900">
-            Help
-          </a>
+          <span className="text-slate-400">People & culture</span>
+          <Link href="/faq" className="hover:text-slate-900">Help center</Link>
         </div>
 
         <div className="hidden sm:block h-6 w-[1px] bg-slate-200" />
 
         {/* Action Controls */}
         <div className="flex items-center gap-4">
-          <button>
-            <MessageCircle className="w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors" />
-          </button>
 
           {/* Bell Icon & Notification Modal Trigger */}
           <div className="relative">
             <button
+              aria-label="Notifications"
+              aria-expanded={isNotifOpen}
               onClick={() => {
                 setIsNotifOpen((prev) => !prev);
                 setIsUserOpen(false);
@@ -259,7 +258,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
             {/* Notification Flyout Modal */}
             {isNotifOpen && (
-              <div className="absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              <div className="notification-popover absolute right-0 mt-3 w-80 sm:w-96 bg-white border border-slate-200 rounded-xl shadow-2xl z-50 overflow-hidden">
                 {/* Header */}
                 <div className="px-4 py-3 bg-slate-50/80 border-b border-slate-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -267,7 +266,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                       Notifications
                     </h3>
                     {unreadCount > 0 && (
-                      <span className="px-2 py-0.5 text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-full">
+                      <span className="px-2 py-0.5 text-[10px] font-semibold text-brand-700 bg-brand-50 border border-brand-200 rounded-full">
                         {unreadCount} new
                       </span>
                     )}
@@ -276,13 +275,14 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                     {unreadCount > 0 && (
                       <button
                         onClick={handleMarkAllAsRead}
-                        className="text-[11px] font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition-colors"
+                        className="text-[11px] font-medium text-brand-600 hover:text-brand-800 flex items-center gap-1 transition-colors"
                       >
                         <CheckCheck className="w-3.5 h-3.5" />
                         Mark all read
                       </button>
                     )}
                     <button
+                      aria-label="Close notifications"
                       onClick={() => setIsNotifOpen(false)}
                       className="text-slate-400 hover:text-slate-600 p-0.5 rounded-lg"
                     >
@@ -309,7 +309,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                         }
                         className={`p-3.5 flex items-start gap-3 transition-colors cursor-pointer ${
                           !item.is_read
-                            ? "bg-indigo-50/30 hover:bg-indigo-50/50"
+                            ? "bg-brand-50/30 hover:bg-brand-50/50"
                             : "hover:bg-slate-50"
                         }`}
                       >
@@ -332,7 +332,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                           </p>
                         </div>
                         {!item.is_read && (
-                          <span className="w-2 h-2 rounded-full bg-indigo-600 shrink-0 mt-1.5" />
+                          <span className="w-2 h-2 rounded-full bg-brand-600 shrink-0 mt-1.5" />
                         )}
                       </div>
                     ))
@@ -342,9 +342,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             )}
           </div>
 
-          <button>
-            <Calendar className="w-5 h-5 text-gray-400 hover:text-gray-600 transition-colors" />
-          </button>
         </div>
 
         <div className="h-6 w-[1px] bg-slate-200" />
@@ -362,6 +359,8 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
           <div className="relative flex items-center justify-center w-8 h-8 rounded-full bg-slate-100 border border-slate-200 text-slate-600">
             <button
+              aria-label="Account menu"
+              aria-expanded={isUserOpen}
               onClick={() => {
                 setIsUserOpen((prev) => !prev);
                 setIsNotifOpen(false);
@@ -391,20 +390,10 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 </div>
 
                 <div className="py-1">
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                    <User2 className="w-4 h-4" />
-                    <span>View Profile</span>
-                  </button>
-
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
-                    <CreditCard className="w-4 h-4" />
-                    <span>My Task</span>
-                  </button>
-
-                  <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#316AFF] transition-colors">
+                  <Link href="/faq" onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#24563E] transition-colors">
                     <CircleHelp className="w-4 h-4" />
                     <span>Help Center</span>
-                  </button>
+                  </Link>
                 </div>
 
                 <div className="border-t border-slate-100 py-1">
@@ -420,6 +409,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 <div className="border-t border-slate-100 py-1">
                   <Link
                     href="/resignation"
+                    onClick={() => setIsUserOpen(false)}
                     className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
                   >
                     <UserMinus className="w-4 h-4" />

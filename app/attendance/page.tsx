@@ -15,13 +15,11 @@ import {
 } from 'recharts';
 import {
   Download,
-  MoreHorizontal,
   Search,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ArrowUpDown,
   Loader2,
   AlertCircle,
 } from 'lucide-react';
@@ -76,14 +74,14 @@ export default function AttendanceDashboard({
 }: AttendanceDashboardProps) {
   const [formattedDate, setFormattedDate] = useState<string>('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedYear, setSelectedYear] = useState('2026');
+  const [selectedYear, setSelectedYear] = useState(() => String(new Date().getFullYear()));
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const m = new Date().getMonth() + 1;
     return String(m).padStart(2, '0');
   });
 
   const {token, roles} = useAuth();
-  const hasHrRole = roles.some((role) => ["hr", "hr_admin", "system_admin"].includes(role.toLowerCase()));
+  const hasHrRole = roles.some((role) => ["hr", "hr_admin", "hradmin", "system_admin", "admin"].includes(role.toLowerCase()));
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
@@ -133,7 +131,7 @@ export default function AttendanceDashboard({
     } finally {
       setIsLoading(false);
     }
-  }, [apiEndpoint, selectedYear, selectedMonth]);
+  }, [apiEndpoint, selectedYear, selectedMonth, token]);
 
   // Fetch when Year/Month changes
   useEffect(() => {
@@ -185,7 +183,7 @@ export default function AttendanceDashboard({
       {
         name: 'Active Staff',
         value: employeesAttendanceList.length,
-        color: '#3b82f6',
+        color: '#397052',
       },
     ];
 
@@ -220,10 +218,11 @@ export default function AttendanceDashboard({
   const renderStatusIcon = (cell: AttendanceCell | null) => {
     const status = cell?.status;
     const code = cell?.provider_status || (status === 'present' ? 'P' : status === 'absent' ? 'A' : status === 'week_off' ? 'WO' : status === 'holiday' ? 'H' : status === 'half_day' ? 'HD' : status === 'on_leave' ? 'L' : '-');
-    const title = [code, cell?.shift_code, cell?.check_in_time && `IN1 ${new Date(cell.check_in_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`, cell?.check_out_time && `Out2 ${new Date(cell.check_out_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`].filter(Boolean).join(' · ');
+    const istTime = (value: string) => new Date(value).toLocaleTimeString('en-GB', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit' });
+    const title = [code, cell?.shift_code, cell?.check_in_time && `IN1 ${istTime(cell.check_in_time)}`, cell?.check_out_time && `Out2 ${istTime(cell.check_out_time)}`].filter(Boolean).join(' · ');
     switch (status) {
       case 'present':
-        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-blue-50 px-1 py-0.5 text-[10px] font-bold text-blue-700">{code}</span>;
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-brand-50 px-1 py-0.5 text-[10px] font-bold text-brand-700">{code}</span>;
       case 'absent':
       case 'on_leave':
         return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-red-50 px-1 py-0.5 text-[10px] font-bold text-red-700">{code}</span>;
@@ -232,22 +231,46 @@ export default function AttendanceDashboard({
         return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-slate-100 px-1 py-0.5 text-[10px] font-bold text-slate-600">{code}</span>;
       case 'half_day':
         return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-amber-50 px-1 py-0.5 text-[10px] font-bold text-amber-700">{code}</span>;
+      case 'provider_unknown':
+        return <span title={title} className="inline-flex min-w-7 justify-center rounded bg-amber-50 px-1 py-0.5 text-[10px] font-bold text-amber-800">{code}</span>;
       default:
         return <span className="text-slate-300 font-light">-</span>;
     }
   };
 
+  const downloadReport = () => {
+    if (onDownloadReport) return onDownloadReport();
+    const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+    const header = ['HRMS employee code', 'Employee', 'Attendance date', 'Provider status', 'Status', 'Shift', 'IN1 (IST)', 'Out2 (IST)', 'Work hours (decimal)', 'Overtime hours (decimal)', 'Source'];
+    const rows = employeesAttendanceList.flatMap(employee =>
+      Object.entries(employee.daily_attendance || {}).filter((entry): entry is [string, AttendanceCell] => Boolean(entry[1])).map(([day, cell]) => [
+        employee.employee_code, employee.display_name || `${employee.first_name} ${employee.last_name}`,
+        `${selectedYear}-${selectedMonth}-${day.padStart(2, '0')}`, cell.provider_status, cell.status, cell.shift_code,
+        cell.check_in_time ? new Date(cell.check_in_time).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }) : '',
+        cell.check_out_time ? new Date(cell.check_out_time).toLocaleString('sv-SE', { timeZone: 'Asia/Kolkata' }) : '',
+        cell.working_hours, cell.overtime_hours, cell.source,
+      ])
+    );
+    const csv = '\uFEFF' + [header, ...rows].map(row => row.map(escape).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance-${selectedYear}-${selectedMonth}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-800 font-sans">
-      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+    <div className="text-slate-800">
+      <div className="space-y-6">
         {/* Top Title Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {formattedDate || 'Today'}
+              Attendance
             </h1>
             <p className="text-xs text-slate-400 font-medium mt-1">
-              Dashboard / <span className="text-slate-600">Attendance</span>
+              Daily records, provider imports, and corrections. <span className="text-slate-600">{formattedDate}</span>
             </p>
           </div>
         </div>
@@ -268,7 +291,7 @@ export default function AttendanceDashboard({
                 Attendance Rate
               </h2>
               <button
-                onClick={onDownloadReport}
+                onClick={downloadReport}
                 className="inline-flex items-center gap-2 text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -308,9 +331,9 @@ export default function AttendanceDashboard({
                         fontSize: '12px',
                       }}
                     />
-                    <Bar dataKey="present" stackId="a" fill="#3b82f6" />
-                    <Bar dataKey="weekOff" stackId="a" fill="#94a3b8" />
-                    <Bar dataKey="absent" stackId="a" fill="#94a3b8" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="present" stackId="a" fill="#397052" />
+                    <Bar dataKey="weekOff" stackId="a" fill="#b17a45" />
+                    <Bar dataKey="absent" stackId="a" fill="#7d897f" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -322,7 +345,7 @@ export default function AttendanceDashboard({
 
             <div className="flex items-center justify-center gap-6 mt-4 text-xs text-slate-600 font-medium">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
                 Present (P)
               </div>
               <div className="flex items-center gap-2">
@@ -342,9 +365,6 @@ export default function AttendanceDashboard({
               <h2 className="text-base font-semibold text-slate-800">
                 Employee Overview
               </h2>
-              <button className="p-1 text-slate-400 hover:text-slate-600 rounded">
-                <MoreHorizontal className="w-5 h-5" />
-              </button>
             </div>
 
             <div className="relative h-60 w-full flex items-center justify-center">
@@ -364,7 +384,7 @@ export default function AttendanceDashboard({
                         endAngle={-270}
                       >
                         {employeeTypeData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color || '#3b82f6'} />
+                          <Cell key={`cell-${index}`} fill={entry.color || '#397052'} />
                         ))}
                       </Pie>
                       <Tooltip />
@@ -423,7 +443,7 @@ export default function AttendanceDashboard({
                     setSearchTerm(e.target.value);
                     setCurrentPage(1);
                   }}
-                  className="pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 w-48"
+                  className="pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 text-slate-700 w-48"
                 />
               </div>
 
@@ -466,7 +486,7 @@ export default function AttendanceDashboard({
 
               {/* Download Report */}
               <button
-                onClick={onDownloadReport}
+                onClick={downloadReport}
                 className="text-xs font-medium text-slate-600 border border-slate-200 hover:bg-slate-50 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
               >
                 Download Report
@@ -492,7 +512,7 @@ export default function AttendanceDashboard({
           <div className="overflow-x-auto border border-slate-100 rounded-xl relative min-h-[250px]">
             {isLoading && (
               <div className="absolute inset-0 bg-white/70 z-20 flex flex-col items-center justify-center gap-2 backdrop-blur-xs">
-                <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                <Loader2 className="w-6 h-6 animate-spin text-brand-600" />
                 <span className="text-xs font-medium text-slate-500">Fetching matrix...</span>
               </div>
             )}
@@ -503,7 +523,6 @@ export default function AttendanceDashboard({
                   <th className="py-3 px-4 min-w-[200px] sticky left-0 bg-slate-50 border-r border-slate-100 z-10">
                     <div className="flex items-center gap-1.5">
                       Employee Name
-                      <ArrowUpDown className="w-3 h-3 text-slate-400 cursor-pointer" />
                     </div>
                   </th>
                   {daysInMonth.map((day) => (
@@ -529,16 +548,7 @@ export default function AttendanceDashboard({
                         {/* Employee Name Column */}
                         <td className="py-2.5 px-4 sticky left-0 bg-white border-r border-slate-100 z-10">
                           <div className="flex items-center gap-3">
-                            <img
-                              src={
-                                emp.profile_photo_url ||
-                                `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                                  emp.first_name || emp.id
-                                )}`
-                              }
-                              alt={displayName}
-                              className="w-8 h-8 rounded-full object-cover shrink-0 bg-slate-100 border border-slate-200 shadow-2xs"
-                            />
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-50 text-[10px] font-semibold text-brand-700" aria-hidden="true">{`${emp.first_name?.[0] || ''}${emp.last_name?.[0] || ''}`.toUpperCase()}</span>
                             <div className="flex flex-col">
                               <span className="font-semibold text-slate-800 whitespace-nowrap">
                                 {displayName}
@@ -612,7 +622,7 @@ export default function AttendanceDashboard({
                   onClick={() => setCurrentPage(page)}
                   className={`w-7 h-7 rounded-lg text-xs font-semibold cursor-pointer transition-colors ${
                     currentPage === page
-                      ? 'bg-blue-600 text-white shadow-2xs'
+                      ? 'bg-brand-600 text-white shadow-2xs'
                       : 'text-slate-600 border border-slate-200 hover:bg-slate-50'
                   }`}
                 >
@@ -637,7 +647,7 @@ export default function AttendanceDashboard({
             </div>
           </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

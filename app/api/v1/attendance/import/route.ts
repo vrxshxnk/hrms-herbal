@@ -2,6 +2,7 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { apiError, ok } from "@/app/lib/api/response";
 import { getDBUserProfile } from "@/app/lib/auth/user-profile";
 import { parsePerformanceRegister } from "@/app/lib/attendance/provider-register";
+import { attendanceTimestamp, isOvernight } from "@/app/lib/attendance/time";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 
@@ -28,17 +29,17 @@ export async function POST(request: Request) {
 
     const parsed = parsePerformanceRegister(await file.arrayBuffer());
     const client = await getPool().connect();
-    let employees: { id: string; employee_code: string }[];
+    let mappings: { provider_code: string; employee_id: string }[];
     try {
       const result = await client.query(
-        "SELECT id, employee_code FROM employees WHERE employee_code = ANY($1::text[])",
+        "SELECT provider_code, employee_id FROM attendance_provider_employee_mappings WHERE provider_code = ANY($1::text[])",
         [parsed.employeeCodes],
       );
-      employees = result.rows;
+      mappings = result.rows;
     } finally {
       client.release();
     }
-    const employeeIds = new Map(employees.map((employee) => [employee.employee_code, employee.id]));
+    const employeeIds = new Map(mappings.map((mapping) => [mapping.provider_code, mapping.employee_id]));
     const validRows = parsed.rows.filter((row) => employeeIds.has(row.employeeCode));
     const unmatchedEmployeeCodes = parsed.employeeCodes.filter((code) => !employeeIds.has(code));
 
@@ -54,7 +55,7 @@ export async function POST(request: Request) {
       });
     }
     if (!validRows.length) {
-      return apiError("VALIDATION_ERROR", "No rows could be matched to HRMS employee codes", 422, { unmatchedEmployeeCodes });
+      return apiError("VALIDATION_ERROR", "No rows could be matched to saved provider Pay Code mappings", 422, { unmatchedEmployeeCodes });
     }
 
     const imported = await withTranscations(async (tx) => {
@@ -84,7 +85,9 @@ export async function POST(request: Request) {
            RETURNING id`,
           [
             employeeIds.get(row.employeeCode), row.attendanceDate, row.status,
-            row.checkInTime, row.checkOutTime, row.workingHours, row.overtimeHours,
+            attendanceTimestamp(row.attendanceDate, row.checkInTime),
+            attendanceTimestamp(row.attendanceDate, row.checkOutTime, isOvernight(row.checkInTime, row.checkOutTime)),
+            row.workingHours, row.overtimeHours,
             row.providerStatus, row.shiftCode,
           ],
         );
@@ -97,6 +100,8 @@ export async function POST(request: Request) {
     return ok({
       action,
       period: { start: parsed.periodStart, end: parsed.periodEnd },
+      employeeCount: parsed.employeeCodes.length,
+      validRows: validRows.length,
       ...imported,
       unmatchedEmployeeCodes,
       skippedRows: parsed.skippedRows,

@@ -1,47 +1,18 @@
 "use client";
-
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { usePathname } from "next/navigation";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import Footer from "./Footer";
-import { useAuth } from "../context/AuthContext";
-type DashboardLayoutProps = {
-  children: React.ReactNode;
-};
 
-const DashboardLayout = ({ children }: DashboardLayoutProps) => {
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const toggleSidebar = () => {
-    setIsSidebarOpen((prev) => !prev);
-  };
-
-  const {roles, hasRole}= useAuth();
-  console.log("current role of login user", roles);
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Sidebar
-        isSidebarOpen={isSidebarOpen}
-        toggleSidebar={toggleSidebar}
-      />
-
-      <div
-        className={`
-          min-h-screen flex flex-col
-          transition-all duration-300 ease-in-out
-          ${isSidebarOpen ? "lg:ml-62" : "lg:ml-0"}
-        `}
-      >
-        <Header toggleSidebar={toggleSidebar} />
-
-        <main className="flex-1 p-4 md:p-6">
-          {children}
-        </main>
-
-        <Footer />
-      </div>
-    </div>
-  );
-};
-
-export default DashboardLayout;
+  const toggleSidebar = useCallback(() => setIsSidebarOpen(open => !open), []);
+  if (pathname === "/login" || pathname === "/logout") return <>{children}</>;
+  return <div className="workspace-shell">
+    <a href="#main-content" className="skip-link">Skip to content</a>
+    <Sidebar isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
+    <div className="workspace-body"><Header toggleSidebar={toggleSidebar} /><main id="main-content" className="workspace-content" tabIndex={-1}>{children}</main><Footer /></div>
+  </div>;
+}

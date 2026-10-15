@@ -1,4 +1,5 @@
 import * as XLSX from "xlsx";
+import { hoursMinutesToDecimal } from "./time";
 
 export interface ProviderAttendanceRow {
   employeeCode: string;
@@ -55,9 +56,7 @@ function parseTime(value: string): string | null {
 }
 
 function parseHours(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  const parsed = Number.parseFloat(clean(value).replace(/[$,]/g, ""));
-  return Number.isFinite(parsed) ? parsed : 0;
+  return hoursMinutesToDecimal(value);
 }
 
 export function normalizeProviderStatus(providerStatus: string | null): string {

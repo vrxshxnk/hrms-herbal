@@ -8,16 +8,9 @@ import {
   Clock,
   Plus,
   FileText,
-  CheckCircle2,
-  ArrowUpRight,
   ChevronRight,
   Wallet,
   LogOut,
-  Sparkles,
-  Sun,
-  Moon,
-  Sunrise,
-  Hand,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
@@ -44,14 +37,6 @@ function getGreeting() {
   return "Good evening";
 }
 
-function getGreetingDetails() {
-  const h = new Date().getHours();
-  if (h < 12)
-    return { text: "Good morning", icon: Sunrise, color: "text-amber-500" };
-  if (h < 17)
-    return { text: "Good afternoon", icon: Sun, color: "text-orange-500" };
-  return { text: "Good evening", icon: Moon, color: "text-indigo-400" };
-}
 
 interface Segment {
   label: string;
@@ -206,17 +191,11 @@ function AreaChart({ data }: { data: { label: string; value: number }[] }) {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full">
-      <defs>
-        <linearGradient id="hiringFill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#316AFF" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#316AFF" stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      <path d={area} fill="url(#hiringFill)" />
+      <path d={area} fill="#edf3ef" />
       <path
         d={line}
         fill="none"
-        stroke="#316AFF"
+        stroke="#24563E"
         strokeWidth="2.5"
         strokeLinecap="round"
       />
@@ -227,7 +206,7 @@ function AreaChart({ data }: { data: { label: string; value: number }[] }) {
             cy={p.y}
             r="4"
             fill="#fff"
-            stroke="#316AFF"
+            stroke="#24563E"
             strokeWidth="2"
           >
             <title>{`${data[i].label}: ${data[i].value}`}</title>
@@ -273,7 +252,6 @@ function ChartCard({
 
 export default function DashboardPage() {
   const { token, roles, user } = useAuth();
-  console.log("user h", user);
   const userName = user?.name || user?.given_name || "User";
   const hasHrRole =
     roles.includes("hr") ||
@@ -338,7 +316,7 @@ export default function DashboardPage() {
       value: stats.totalEmployees,
       note: "Active roster",
       icon: Users,
-      color: "#FF8400",
+      color: "#B17A45",
       tint: "bg-[#FFF3E6]",
     },
     {
@@ -346,15 +324,15 @@ export default function DashboardPage() {
       value: stats.newEmployees,
       note: "Recent joins",
       icon: UserPlus,
-      color: "#00B4D8",
-      tint: "bg-[#E6F8FC]",
+      color: "#547F76",
+      tint: "bg-[#EDF3EF]",
     },
     {
       title: "On Leave Today",
       value: stats.onLeave,
       note: "Approved leaves",
       icon: Calendar,
-      color: "#F5A400",
+      color: "#A7833D",
       tint: "bg-[#FFF8E1]",
     },
     ...(hasManagerRole
@@ -364,7 +342,7 @@ export default function DashboardPage() {
             value: stats.pendingLeaves,
             note: "Requires action",
             icon: Briefcase,
-            color: "#00A86B",
+            color: "#397052",
             tint: "bg-[#E8F7F0]",
           },
           {
@@ -372,7 +350,7 @@ export default function DashboardPage() {
             value: stats.pendingReimbursements,
             note: "Expense claims",
             icon: Clock,
-            color: "#FF3B30",
+            color: "#B86052",
             tint: "bg-[#FFECEB]",
           },
         ]
@@ -385,7 +363,7 @@ export default function DashboardPage() {
       title: "Leaves",
       desc: "Manage & apply requests",
       icon: Calendar,
-      iconStyle: "bg-indigo-50 text-indigo-600",
+      iconStyle: "bg-brand-50 text-brand-600",
     },
     {
       href: "/reimbursements",
@@ -427,19 +405,19 @@ export default function DashboardPage() {
 
   const workforceSegments: Segment[] = [
     {
-      label: "Working",
+      label: "Not on leave",
       value: Math.max(stats.totalEmployees - stats.onLeave, 0),
-      color: "#316AFF",
+      color: "#24563E",
     },
-    { label: "On leave", value: stats.onLeave, color: "#FFB703" },
+    { label: "On leave", value: stats.onLeave, color: "#B59B55" },
   ];
 
   const pendingSegments: Segment[] = [
-    { label: "Leave approvals", value: stats.pendingLeaves, color: "#00A86B" },
+    { label: "Leave approvals", value: stats.pendingLeaves, color: "#397052" },
     {
       label: "Reimbursements",
       value: stats.pendingReimbursements,
-      color: "#FF3B30",
+      color: "#B86052",
     },
   ];
 
@@ -450,12 +428,12 @@ export default function DashboardPage() {
   }));
 
   const deptColors = [
-    "#316AFF",
-    "#00B4D8",
-    "#FF8400",
-    "#00A86B",
-    "#8B5CF6",
-    "#FF3B30",
+    "#24563E",
+    "#547F76",
+    "#B17A45",
+    "#397052",
+    "#8C7953",
+    "#B86052",
   ];
   const hasTrend = (charts.hiringTrend?.length ?? 0) >= 2;
   const hasDepts = (charts.departments?.length ?? 0) > 0;
@@ -467,13 +445,12 @@ export default function DashboardPage() {
     year: "numeric",
   });
 
-  const greeting = getGreetingDetails();
-  const GreetingIcon = greeting.icon;
+  const greeting = { text: getGreeting() };
   const formattedName = userName
     ? userName.replace(/\b\w/g, (char: string) => char.toUpperCase())
     : "User";
   return (
-    <div className="p-4 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="space-y-6">
       <AddEmployeeModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -486,95 +463,41 @@ export default function DashboardPage() {
         data={createdCredentials}
       />
 
-      {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl border border-slate-200/70 bg-gradient-to-br from-[#F4F7FF] via-white to-[#FFF7F0] p-6 md:p-8 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-        <div className="pointer-events-none absolute -top-16 -right-10 h-56 w-56 rounded-full bg-[#316AFF]/10 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 left-1/3 h-56 w-56 rounded-full bg-[#FF8400]/10 blur-3xl" />
-
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 border border-slate-200 px-3 py-1 text-[11px] font-semibold text-slate-500 shadow-sm">
-              <Sparkles className="w-3 h-3 text-[#316AFF]" />
-              {currentDateFormatted}
-            </div>
-            <div className="flex items-center gap-2">
-              <h1 className="mt-3 flex flex-wrap items-center gap-2 text-2xl md:text-3xl font-bold tracking-tight text-slate-900">
-                <span className="inline-flex items-center gap-2">
-                  <GreetingIcon
-                    className={`w-7 h-7 ${greeting.color} inline-block animate-bounce`}
-                  />
-                  {greeting.text}, welcome back,
-                </span>
-                <span className="inline-flex items-center gap-1.5 bg-gradient-to-r from-[#316AFF] to-[#1D4ED8] bg-clip-text text-transparent font-extrabold">
-                  {formattedName}!
-                  <span className="text-2xl animate-pulse inline-block">
-                    👋
-                  </span>
-                </span>
-              </h1>
-            </div>
-            <p className="mt-1.5 text-sm text-slate-500 max-w-xl">
-              Here&apos;s a quick overview of your workspace activities today.
-            </p>
+      <div className="page-intro">
+        <div><p className="eyebrow">Your workspace</p><h1>Overview</h1><p>A clear view of your people and the day ahead.</p></div>
+        <span className="text-xs text-slate-500 flex items-center gap-2"><Calendar size={15} />{currentDateFormatted}</span>
+      </div>
+      <section className="overview-hero">
+        <div><p className="eyebrow">A little clarity for your day</p><h1>{greeting.text}, {formattedName.split(" ")[0]}.</h1><p>{hasManagerRole ? "Keep your team moving. Review requests, manage time, and stay connected." : "Your time, requests, and updates. Everything you need in one place."}</p></div>
+        {hasHrRole ? <button type="button" onClick={() => setIsModalOpen(true)} className="button-primary shrink-0"><Plus size={16} />Add employee</button> : <Link href="/leave" className="button-primary shrink-0"><Plus size={16} />Request time off</Link>}
+      </section>
+      <div className="overview-stats">
+        {statCards.map(stat => <div key={stat.title} className="overview-stat">
+          <div className="overview-stat-top"><span>{stat.title}</span><stat.icon size={16} strokeWidth={1.6} /></div>
+          {loading ? <div className="my-4 h-8 w-12 animate-pulse bg-slate-100 rounded" /> : <strong>{stat.value}</strong>}
+          <small>{stat.note}</small>
+        </div>)}
+      </div>
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
+          <div className="mb-5"><h2 className="text-sm font-semibold">Make your next move</h2><p className="text-xs text-slate-500 mt-1">The everyday, a little easier.</p></div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {[{ href: "/employee", title: "Find your people", desc: "Browse the employee directory", icon: Users }, { href: "/attendance", title: "Manage attendance", desc: "Daily records, imports & corrections", icon: Clock }, ...modules.slice(0, 2)].map(item => <Link key={item.href} href={item.href} className="group flex items-center gap-3 border border-slate-200 rounded-lg p-4 hover:border-brand-300 hover:bg-brand-50 transition-colors"><span className="w-9 h-9 flex items-center justify-center rounded-lg bg-slate-50 text-brand-600"><item.icon size={18} /></span><span className="flex-1"><span className="block text-xs font-semibold">{item.title}</span><span className="block mt-1 text-[11px] text-slate-500">{item.desc}</span></span><ChevronRight size={15} className="text-slate-400" /></Link>)}
           </div>
-          {hasHrRole && (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="group inline-flex items-center justify-center gap-2 rounded-xl bg-[#316AFF] px-5 py-3 text-sm font-semibold text-white shadow-[0_8px_20px_-6px_rgba(49,106,255,0.55)] transition-all hover:bg-[#2554d7] hover:-translate-y-0.5"
-            >
-              <Plus className="w-4 h-4 transition-transform group-hover:rotate-90" />
-              Add Employee
-            </button>
-          )}
         </div>
-      </div>
-
-      {/* Stats */}
-      <div
-        className={`grid grid-cols-2 sm:grid-cols-3 ${hasManagerRole ? "xl:grid-cols-5" : "xl:grid-cols-3"} gap-4`}
-      >
-        {statCards.map((stat) => {
-          const Icon = stat.icon;
-          return (
-            <div
-              key={stat.title}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(16,24,40,0.04)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_12px_28px_-12px_rgba(16,24,40,0.18)]"
-            >
-              <div
-                className="absolute inset-x-0 top-0 h-[3px] opacity-80"
-                style={{ background: stat.color }}
-              />
-              <div
-                className={`flex h-11 w-11 items-center justify-center rounded-xl ${stat.tint}`}
-              >
-                <Icon className="h-5 w-5" style={{ color: stat.color }} />
-              </div>
-              <div className="mt-4">
-                {loading ? (
-                  <div className="h-8 w-12 animate-pulse rounded-md bg-slate-100" />
-                ) : (
-                  <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-                    {stat.value}
-                  </h2>
-                )}
-                <p className="mt-1 text-xs font-semibold text-slate-700">
-                  {stat.title}
-                </p>
-                <p className="mt-0.5 text-[11px] font-medium text-slate-400">
-                  {stat.note}
-                </p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        <div className="bg-white border border-slate-200 rounded-xl p-6">
+          <p className="eyebrow">{hasManagerRole ? "Action center" : "Stay in the loop"}</p>
+          <h2 className="text-lg font-semibold mt-2">{hasManagerRole ? "Needs your attention" : "Your team, connected"}</h2>
+          <p className="text-xs text-slate-500 mt-2 mb-5 leading-relaxed">{hasManagerRole ? "Requests waiting for your review." : "Catch up on company news or find answers to everyday questions."}</p>
+          {hasManagerRole ? attention.map(item => <Link key={item.href} href={item.href} className="flex gap-3 items-center py-4 border-t border-slate-100"><span className="flex-1 text-xs text-slate-600">{item.label}</span><span className="min-w-7 text-center px-2 py-1 rounded-md bg-brand-50 text-brand-700 text-xs font-semibold">{loading ? "…" : item.count}</span><ChevronRight size={14} /></Link>) : <div className="space-y-3"><Link href="/announcements" className="block text-sm text-brand-600">Read announcements →</Link><Link href="/faq" className="block text-sm text-brand-600">Visit the help center →</Link></div>}
+        </div>
+      </section>
 
       {/* Charts row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard
-          title="Workforce Status"
-          subtitle="Working vs on leave today"
+          title="Workforce availability"
+          subtitle="Employees not on approved leave vs on leave"
         >
           <DonutChart
             segments={workforceSegments}
@@ -634,120 +557,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Lower section */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-        {/* Modules */}
-        <div className="lg:col-span-3 rounded-2xl border border-slate-200/70 bg-white p-5 md:p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-bold text-slate-900">
-                Quick Navigation
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Jump straight to your modules
-              </p>
-            </div>
-            <span className="rounded-full bg-[#316AFF]/10 px-3 py-1 text-[11px] font-semibold text-[#316AFF]">
-              Shortcuts
-            </span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {modules.map((m) => {
-              const Icon = m.icon;
-              return (
-                <Link
-                  key={m.href}
-                  href={m.href}
-                  className="group flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/60 p-3.5 transition-all hover:border-[#316AFF]/30 hover:bg-white hover:shadow-[0_8px_20px_-10px_rgba(49,106,255,0.35)]"
-                >
-                  <div
-                    className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${m.iconStyle}`}
-                  >
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-slate-800">
-                      {m.title}
-                    </p>
-                    <p className="text-[11px] text-slate-400">{m.desc}</p>
-                  </div>
-                  <ArrowUpRight className="h-4 w-4 text-slate-300 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[#316AFF]" />
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Attention panel (Managers / HR only) */}
-        {hasManagerRole ? (
-          <div className="lg:col-span-2 flex flex-col rounded-2xl border border-slate-200/70 bg-gradient-to-br from-[#F4F7FF] to-white p-5 md:p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-600">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Realtime sync active
-                </div>
-                <h3 className="mt-3 text-base font-bold text-slate-900">
-                  Needs your attention
-                </h3>
-                <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  Leave requests and advance salary claims awaiting review.
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-5 space-y-2.5">
-              {attention.map((item) => (
-                <Link
-                  key={item.label}
-                  href={item.href}
-                  className="group flex items-center gap-3 rounded-xl border border-slate-100 bg-white p-3 transition-all hover:border-[#316AFF]/30 hover:shadow-sm"
-                >
-                  <span className={`h-2 w-2 rounded-full ${item.dot}`} />
-                  <span className="flex-1 text-xs font-medium text-slate-600">
-                    {item.label}
-                  </span>
-                  <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-800">
-                    {loading ? "…" : item.count}
-                  </span>
-                  <ChevronRight className="h-4 w-4 text-slate-300 transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              ))}
-            </div>
-
-            <div className="mt-auto flex items-center justify-between pt-5 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                Notification system connected
-              </span>
-              <span className="font-semibold text-emerald-600">Online</span>
-            </div>
-          </div>
-        ) : (
-          <div className="lg:col-span-2 flex flex-col justify-between rounded-2xl border border-slate-200/70 bg-gradient-to-br from-[#F4F7FF] to-white p-5 md:p-6 shadow-[0_1px_2px_rgba(16,24,40,0.04)]">
-            <div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-600">
-                Employee Portal
-              </div>
-              <h3 className="mt-3 text-base font-bold text-slate-900">
-                Quick Info
-              </h3>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Submit your leave requests or file expense reimbursement claims
-                through the navigation shortcuts on the left.
-              </p>
-            </div>
-            <div className="mt-auto flex items-center justify-between pt-5 text-xs text-slate-400">
-              <span className="flex items-center gap-1.5">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                Connected to HRMS
-              </span>
-              <span className="font-semibold text-emerald-600">Active</span>
-            </div>
-          </div>
-        )}
-      </div>
     </div>
   );
 }

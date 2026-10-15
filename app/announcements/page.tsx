@@ -132,18 +132,18 @@ export default function AnnouncementsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 text-slate-800 p-6 lg:p-10">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="text-slate-800">
+      <div className="space-y-6">
         
         {/* Banner Section */}
-        <div className="relative bg-gradient-to-r from-white via-slate-50/50 to-blue-50/30 border border-slate-200/80 rounded-3xl p-8 lg:p-10 shadow-sm overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="relative bg-brand-50 border border-brand-100 rounded-xl p-6 lg:p-8 overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
           <div className="space-y-4 z-10 max-w-lg">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 border border-blue-100 rounded-full text-blue-600 text-xs font-semibold">
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-brand-50 border border-brand-100 rounded-full text-brand-600 text-xs font-semibold">
               <Megaphone className="w-3.5 h-3.5" />
               <span>Company Broadcasts</span>
             </div>
             <h1 className="text-3xl lg:text-4xl font-extrabold tracking-tight text-slate-900 leading-tight">
-              Create & Manage <br /> Organization Announcements
+              Announcements
             </h1>
             <p className="text-slate-500 text-sm lg:text-base leading-relaxed">
               Publish critical updates, policy changes, and department news directly to your team.
@@ -165,11 +165,11 @@ export default function AnnouncementsPage() {
             <svg className="absolute top-6 right-20 w-12 h-12 text-amber-400" viewBox="0 0 50 50" fill="none" stroke="currentColor" strokeWidth="2.5">
               <polygon points="25,5 45,40 5,40" />
             </svg>
-            <svg className="absolute top-12 left-4 w-14 h-14 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
+            <svg className="absolute top-12 left-4 w-14 h-14 text-brand-600" viewBox="0 0 24 24" fill="currentColor">
               <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
             </svg>
             <svg className="absolute bottom-0 right-0 w-44 h-40" viewBox="0 0 160 140" fill="none">
-              <path d="M50 140 C50 100, 70 80, 100 80 C130 80, 160 100, 160 140" fill="#2563EB" />
+              <path d="M50 140 C50 100, 70 80, 100 80 C130 80, 160 100, 160 140" fill="#24563E" />
               <circle cx="125" cy="55" r="7" fill="#F59E0B" />
               <path d="M100 80 C100 50, 130 50, 130 70 C130 90, 100 90, 100 80 Z" fill="#0F172A" />
               <path d="M90 60 C90 45, 120 45, 120 60 C120 75, 90 75, 90 60 Z" fill="#FFF" stroke="#0F172A" strokeWidth="2" />
@@ -187,7 +187,7 @@ export default function AnnouncementsPage() {
               placeholder="Search announcements by title or content..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 shadow-xs"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 transition-all text-slate-800 shadow-xs"
             />
           </div>
 
@@ -195,7 +195,7 @@ export default function AnnouncementsPage() {
             <select
               value={selectedYear}
               onChange={(e) => setSelectedYear(e.target.value)}
-              className="w-full sm:w-auto appearance-none bg-white border border-slate-200 px-4 py-2.5 pr-10 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-blue-600 shadow-xs cursor-pointer"
+              className="w-full sm:w-auto appearance-none bg-white border border-slate-200 px-4 py-2.5 pr-10 rounded-xl text-sm font-semibold text-slate-700 focus:outline-none focus:border-brand-600 shadow-xs cursor-pointer"
             >
               <option value="2026">Year 2026</option>
               <option value="2025">Year 2025</option>
@@ -260,7 +260,7 @@ export default function AnnouncementsPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <h2 className="text-lg font-bold text-slate-900 group-hover:text-blue-600 transition-colors leading-snug">{item.title}</h2>
+                    <h2 className="text-lg font-bold text-slate-900 group-hover:text-brand-600 transition-colors leading-snug">{item.title}</h2>
                     <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{item.content}</p>
                   </div>
 
@@ -310,7 +310,7 @@ export default function AnnouncementsPage() {
                   placeholder="e.g. Updated Employee Benefits Policy 2026"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 placeholder:text-slate-400"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 transition-all text-slate-800 placeholder:text-slate-400"
                 />
               </div>
 
@@ -320,7 +320,7 @@ export default function AnnouncementsPage() {
                   <select
                     value={formData.priority}
                     onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 font-medium text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-600 font-medium text-slate-800"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -335,7 +335,7 @@ export default function AnnouncementsPage() {
                     type="date"
                     value={formData.expires_at}
                     onChange={(e) => setFormData({ ...formData, expires_at: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-blue-600 text-slate-800"
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:border-brand-600 text-slate-800"
                   />
                 </div>
               </div>
@@ -348,7 +348,7 @@ export default function AnnouncementsPage() {
                   placeholder="Write details of the announcement here..."
                   value={formData.content}
                   onChange={(e) => setFormData({ ...formData, content: e.target.value })}
-                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 transition-all text-slate-800 placeholder:text-slate-400"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-600 transition-all text-slate-800 placeholder:text-slate-400"
                 />
               </div>
 

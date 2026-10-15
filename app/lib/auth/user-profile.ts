@@ -26,21 +26,24 @@ export async function getDBUserProfile(request: Request): Promise<DBUserProfile 
          work_email,
          department_id,
          location_id,
-         legal_entity_id
+         legal_entity_id,
+         system_role
        FROM employees
        WHERE keycloak_id = $1 AND status = 'active'`,
       [authUser.sub]
     );
 
     if (result.rows.length === 0) return null;
-    const roles: string[] = authUser.roles;
+    const roles = authUser.roles.map((role) => role.toLowerCase());
     let system_role = "employee";
-    if (roles.includes("admin")) {
-      system_role = "admin";
-    } else if (roles.includes("manager")) {
-      system_role = "manager";
+    if (roles.includes("system_admin") || roles.includes("admin")) {
+      system_role = "system_admin";
+    } else if (roles.includes("hr_admin") || roles.includes("hradmin")) {
+      system_role = "hr_admin";
     } else if (roles.includes("hr")) {
       system_role = "hr";
+    } else if (roles.includes("manager")) {
+      system_role = "manager";
     }
 
     return {

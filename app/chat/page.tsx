@@ -93,7 +93,7 @@ function NewConversationPanel() {
   return (
     <div className="relative px-3 py-2">
       <button
-        className="w-full flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl bg-blue-600 text-white hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm shadow-blue-200"
+        className="w-full flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl bg-brand-600 text-white hover:bg-brand-700 active:scale-[0.98] transition-all shadow-sm shadow-brand-200"
         onClick={() => {
           const next = !open;
           setOpen(next);
@@ -119,7 +119,7 @@ function NewConversationPanel() {
               onClick={() => startConversation(emp)}
               className="w-full flex items-center gap-3 text-left px-3 py-2.5 text-xs hover:bg-slate-50 disabled:opacity-50 border-b border-slate-50 last:border-0 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-brand-50 text-brand-600 flex items-center justify-center font-bold shrink-0">
                 {(emp.first_name || emp.work_email || "?").charAt(0).toUpperCase()}
               </div>
               <span className="flex-1 truncate font-medium text-slate-700">
@@ -210,7 +210,7 @@ export default function ChatPage() {
                 <input
                   type="text"
                   placeholder="Search"
-                  className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-full bg-slate-100/70 border-none text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  className="w-full pl-9 pr-3 py-2 text-xs font-medium rounded-full bg-slate-100/70 border-none text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-500/20"
                   disabled
                 />
               </div>

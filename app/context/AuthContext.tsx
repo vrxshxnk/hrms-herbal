@@ -181,7 +181,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F7F5F0]">
         <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 bg-[#BCE061] rounded-xl flex items-center justify-center font-bold text-slate-800 text-xl animate-pulse">
+          <div className="w-12 h-12 bg-brand-600 rounded-xl flex items-center justify-center font-semibold text-white text-xl animate-pulse">
             H
           </div>
           <p className="text-gray-500 font-medium">

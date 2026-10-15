@@ -87,7 +87,7 @@ export default function AddLeavePage() {
   if (isLoading) {
     return (
       <div className="flex h-64 items-center justify-center gap-2 text-slate-500">
-        <Loader2 className="w-5 h-5 animate-spin text-[#316AFF]" />
+        <Loader2 className="w-5 h-5 animate-spin text-[#24563E]" />
         <span className="text-sm">Loading options...</span>
       </div>
     );
