@@ -34,6 +34,7 @@ export type Employee = {
   marital_status?: string;
   department_id?: string;
   designation_id?: string;
+  reporting_manager_id?: string | null;
   department_name?: string;
   designation_title?: string;
 };
@@ -55,8 +56,7 @@ const EmployeePage = () => {
   const [isPasswordModalOpen, setIsPasswordModalOpen]= useState(false);
 
   const { roles, token } = useAuth();
-  console.log("roles employee dsahboard m : ", roles);
-  const hasHrRole = roles.includes("hr");
+  const hasHrRole = ["hr", "hr_admin", "hradmin", "admin", "system_admin"].some((role) => roles.includes(role));
   const hasEmpRoles = roles.includes("employee");
 
   const fetchEmployees = useCallback(async () => {

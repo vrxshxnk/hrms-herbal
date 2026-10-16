@@ -256,7 +256,9 @@ export default function DashboardPage() {
   const hasHrRole =
     roles.includes("hr") ||
     roles.includes("hr_admin") ||
-    roles.includes("admin");
+    roles.includes("hradmin") ||
+    roles.includes("admin") ||
+    roles.includes("system_admin");
   const hasManagerRole =
     roles.includes("manager") || roles.includes("super_manager") || hasHrRole;
 
@@ -471,13 +473,13 @@ export default function DashboardPage() {
         <div><p className="eyebrow">A little clarity for your day</p><h1>{greeting.text}, {formattedName.split(" ")[0]}.</h1><p>{hasManagerRole ? "Keep your team moving. Review requests, manage time, and stay connected." : "Your time, requests, and updates. Everything you need in one place."}</p></div>
         {hasHrRole ? <button type="button" onClick={() => setIsModalOpen(true)} className="button-primary shrink-0"><Plus size={16} />Add employee</button> : <Link href="/leave" className="button-primary shrink-0"><Plus size={16} />Request time off</Link>}
       </section>
-      <div className="overview-stats">
+      {hasHrRole && <div className="overview-stats">
         {statCards.map(stat => <div key={stat.title} className="overview-stat">
           <div className="overview-stat-top"><span>{stat.title}</span><stat.icon size={16} strokeWidth={1.6} /></div>
           {loading ? <div className="my-4 h-8 w-12 animate-pulse bg-slate-100 rounded" /> : <strong>{stat.value}</strong>}
           <small>{stat.note}</small>
         </div>)}
-      </div>
+      </div>}
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-6">
           <div className="mb-5"><h2 className="text-sm font-semibold">Make your next move</h2><p className="text-xs text-slate-500 mt-1">The everyday, a little easier.</p></div>
@@ -494,7 +496,7 @@ export default function DashboardPage() {
       </section>
 
       {/* Charts row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {hasHrRole && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ChartCard
           title="Workforce availability"
           subtitle="Employees not on approved leave vs on leave"
@@ -524,7 +526,7 @@ export default function DashboardPage() {
         <ChartCard title="At a Glance" subtitle="All key numbers compared">
           <BarList items={overviewBars} loading={loading} />
         </ChartCard>
-      </div>
+      </div>}
 
       {/* Hiring Trends / Analytics (Visible to HR/Admin) */}
       {hasHrRole && (hasTrend || hasDepts) && (

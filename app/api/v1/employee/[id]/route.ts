@@ -13,7 +13,8 @@ export async function GET(
 
   try {
     const authUser = await getAuthenticatedUser(request);
-    const isHR = authUser.roles.includes("hr");
+    const isHR = authUser.roles.some((role) => ["hr", "hr_admin", "hradmin", "admin", "system_admin"].includes(role.toLowerCase()));
+    const isManager = authUser.roles.some((role) => ["manager", "super_manager"].includes(role.toLowerCase()));
     let singleQuery = `
       SELECT   
         e.*,
@@ -36,12 +37,14 @@ export async function GET(
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
       LEFT JOIN employees sm ON e.super_manager_id = sm.id
       LEFT JOIN employee_identities ei ON e.id = ei.employee_id
-      WHERE e.id = $1;
+      WHERE e.id = $1
     `;
 
     const queryParams: any[] = [id];
     if (!isHR) {
-      singleQuery += ` AND e.keycloak_id = $2`;
+      singleQuery += isManager
+        ? ` AND (e.keycloak_id = $2 OR e.reporting_manager_id = (SELECT id FROM employees WHERE keycloak_id = $2) OR e.super_manager_id = (SELECT id FROM employees WHERE keycloak_id = $2))`
+        : ` AND e.keycloak_id = $2`;
       queryParams.push(authUser.sub);
     }
 

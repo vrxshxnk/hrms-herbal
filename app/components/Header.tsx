@@ -4,6 +4,7 @@ import {
   Menu,
   Bell,
   User,
+  UserRound,
   CircleHelp,
   LogOut,
   UserMinus,
@@ -17,7 +18,13 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import WorkspaceSearch from "./WorkspaceSearch";
+
+const ProfileModal = dynamic(
+  () => import("../modals/ProfileModal").then((module) => module.ProfileModal),
+  { ssr: false },
+);
 
 type HeaderProps = {
   toggleSidebar: () => void;
@@ -38,11 +45,31 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   const { user, logout, token } = useAuth();
   const [isUserOpen, setIsUserOpen] = useState<boolean>(false);
   const [isNotifOpen, setIsNotifOpen] = useState<boolean>(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profilePhotoUrl, setProfilePhotoUrl] = useState<string | null>(null);
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const previousUnreadCount = useRef<number>(0);
   const headerRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    const fetchProfile = async () => {
+      try {
+        const response = await fetch("/api/v1/profile", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) return;
+        const result = await response.json();
+        if (!cancelled) setProfilePhotoUrl(result?.data?.data?.profile_photo_url || null);
+      } catch {
+        // A missing profile photo should not prevent the header from rendering.
+      }
+    };
+    fetchProfile();
+    return () => { cancelled = true; };
+  }, [token, isProfileOpen]);
   useEffect(() => {
     const close = (event: PointerEvent) => {
       if (!headerRef.current?.contains(event.target as Node)) { setIsUserOpen(false); setIsNotifOpen(false); }
@@ -211,6 +238,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
   };
 
   return (
+    <>
     <header ref={headerRef} className="workspace-header">
       {/* Left side: Mobile Toggle & Search */}
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -361,12 +389,13 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
             <button
               aria-label="Account menu"
               aria-expanded={isUserOpen}
+              className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full"
               onClick={() => {
                 setIsUserOpen((prev) => !prev);
                 setIsNotifOpen(false);
               }}
             >
-              <User className="w-4 h-4" />
+              {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" className="h-full w-full object-cover" /> : <User className="w-4 h-4" />}
               <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
             </button>
 
@@ -375,7 +404,7 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 <div className="px-4 py-3 border-b border-slate-100">
                   <div className="flex items-center gap-3">
                     <div className="relative flex items-center justify-center w-10 h-10 shrink-0 rounded-full bg-slate-100 border border-slate-200 text-slate-500">
-                      <User className="w-5 h-5" />
+                      {profilePhotoUrl ? <img src={profilePhotoUrl} alt="" className="h-full w-full rounded-full object-cover" /> : <User className="w-5 h-5" />}
                       <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
                     </div>
                     <div className="min-w-0">
@@ -390,6 +419,10 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                 </div>
 
                 <div className="py-1">
+                  <button type="button" onClick={() => { setIsUserOpen(false); setIsProfileOpen(true); }} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#24563E] transition-colors">
+                    <UserRound className="w-4 h-4" />
+                    <span>View profile</span>
+                  </button>
                   <Link href="/faq" onClick={() => setIsUserOpen(false)} className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-slate-500 hover:bg-slate-50 hover:text-[#24563E] transition-colors">
                     <CircleHelp className="w-4 h-4" />
                     <span>Help Center</span>
@@ -422,6 +455,8 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
         </div>
       </div>
     </header>
+    {isProfileOpen && <ProfileModal isOpen={isProfileOpen} onClose={() => setIsProfileOpen(false)} />}
+    </>
   );
 };
 

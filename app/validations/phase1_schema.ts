@@ -432,7 +432,7 @@ export const createEmployeeAuditLogSchema = z.object({
 });
 
 export const createLeaveRequestSchema = z.object({
-  employee_id: z.string().uuid("Invalid Employee ID"),
+  employee_id: z.string().uuid("Invalid Employee ID").optional(),
   leave_code: z.enum(["CASUAL", "SICK", "MATERNITY", "PATERNITY","HALF_DAY"], {
     message: "Invalid leave type code",
   }),

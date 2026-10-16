@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { AlertCircle, MessageSquareText, RotateCcw, Eye } from "lucide-react";
 import { LeaveTrackModal, LeaveRequest } from "./LeaveTrackModal";
@@ -38,6 +38,35 @@ export default function EmployeeLeaveTable({
 
   // Leave Tracking Modal State
   const [trackingLeave, setTrackingLeave] = useState<LeaveRequest | null>(null);
+
+  // Mouse Drag Scrolling Ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!scrollContainerRef.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - scrollContainerRef.current.offsetLeft);
+    setScrollLeft(scrollContainerRef.current.scrollLeft);
+  };
+
+  const handleMouseLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !scrollContainerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - scrollContainerRef.current.offsetLeft;
+    const walk = (x - startX) * 1.5; // Scroll speed multiplier
+    scrollContainerRef.current.scrollLeft = scrollLeft - walk;
+  };
 
   useEffect(() => {
     async function fetchBalances() {
@@ -183,7 +212,7 @@ export default function EmployeeLeaveTable({
     }
     return true;
   });
-  console.log("tracking row rigth now :",trackingLeave);
+
   return (
     <>
       <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
@@ -208,13 +237,21 @@ export default function EmployeeLeaveTable({
           </div>
         </div>
 
-        <div className="w-full overflow-x-auto rounded-lg">
+        {/* Scrollable Container with Mouse Drag & Wheel Support */}
+        <div
+          ref={scrollContainerRef}
+          onMouseDown={handleMouseDown}
+          onMouseLeave={handleMouseLeave}
+          onMouseUp={handleMouseUp}
+          onMouseMove={handleMouseMove}
+          className="w-full overflow-x-auto rounded-lg pb-3 cursor-grab active:cursor-grabbing select-none [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar-track]:bg-slate-100 [&::-webkit-scrollbar-track]:rounded-lg [&::-webkit-scrollbar-thumb]:bg-slate-300 [&::-webkit-scrollbar-thumb]:rounded-lg hover:[&::-webkit-scrollbar-thumb]:bg-slate-400"
+        >
           <table className="w-full text-left border-collapse min-w-[1250px]">
             <thead>
               <tr className="bg-brand-50/50 text-xs font-semibold text-gray-600 uppercase tracking-wider">
                 <th className="py-3 px-4">Name</th>
                 <th className="py-3 px-4">Leave Type</th>
-                <th className="py-3 px-4">Department</th>
+                {isHR && (<th className="py-3 px-4">Department</th>)}
                 <th className="py-3 px-4">Balance</th>
                 <th className="py-3 px-4">Days</th>
                 <th className="py-3 px-4">Start</th>
@@ -246,6 +283,7 @@ export default function EmployeeLeaveTable({
 
                   const rejectionReason =
                     row.rejection_reason || row.manager_rejection_reason;
+
                   const isOwnRequest =
                     user?.sub === row.keycloak_id ||
                     user?.id === row.employee_id ||
@@ -281,9 +319,11 @@ export default function EmployeeLeaveTable({
                       <td className="py-3 px-4 whitespace-nowrap text-emerald-600 font-medium">
                         {row.leave_type}
                       </td>
-                      <td className="py-3 px-4 whitespace-nowrap text-gray-600">
+                     {isHR && (
+                         <td className="py-3 px-4 whitespace-nowrap text-gray-600">
                         {row.department || "N/A"}
                       </td>
+                     )}
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-xs">
                           <span className="text-brand-600 font-bold">
@@ -305,7 +345,6 @@ export default function EmployeeLeaveTable({
                         {formatDate(row.end_date)}
                       </td>
 
-                      {/* MANAGER APPROVAL COLUMN */}
                       <td className="py-3 px-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <span
@@ -341,7 +380,6 @@ export default function EmployeeLeaveTable({
                         </div>
                       </td>
 
-                      {/* HR STATUS COLUMN */}
                       <td className="py-3 px-4">
                         <div className="flex flex-col items-start gap-1.5">
                           <span
@@ -381,7 +419,7 @@ export default function EmployeeLeaveTable({
 
                       <td className="py-3 px-4 whitespace-nowrap text-center">
                         <div className="flex items-center justify-center gap-2">
-                        {hasActionRole && (
+                        {hasActionRole && !isOwnRequest && (
                             <>
                               {row.status !== "Approved" && row.status !== "Withdrawn" && (
                                 <button
@@ -459,13 +497,11 @@ export default function EmployeeLeaveTable({
         </div>
       </div>
 
-   
       <LeaveTrackModal
         isOpen={!!trackingLeave}
         onClose={() => setTrackingLeave(null)}
         leave={trackingLeave}
       />
-
 
       {viewingReason && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
