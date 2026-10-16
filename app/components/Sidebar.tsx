@@ -183,19 +183,23 @@ const Sidebar = ({ isSidebarOpen, toggleSidebar }: SidebarProps) => {
                 </Link>
               )}
 
-              <a href="#" className={navItemClass("/payroll")}>
+              {isHr && (
+                 <a href="#" className={navItemClass("/payroll")}>
                 <div className="flex items-center gap-2.5">
                   <Wallet className={iconClass("/payroll")} />
                   <span>Payroll</span>
                 </div>
               </a>
+              )}
 
-              <a href="#" className={navItemClass("/recruitment")}>
+              {isHr && (
+                 <a href="#" className={navItemClass("/recruitment")}>
                 <div className="flex items-center gap-2.5">
                   <Briefcase className={iconClass("/recruitment")} />
                   <span>Recruitment</span>
                 </div>
               </a>
+              )}
 
               <a href="#" className={navItemClass("/tasks")}>
                 <div className="flex items-center gap-2.5">

@@ -56,8 +56,10 @@ export const AddEmployeeModal = ({
   const [loadingDesignations, setLoadingDesignations] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   
-  const { token } = useAuth();
+  const { token, hasRole } = useAuth();
   const isEditMode = Boolean(employeeToEdit);
+
+  const isHR= hasRole("hr");
 
   // Fetch Departments
   useEffect(() => {
@@ -407,7 +409,9 @@ export const AddEmployeeModal = ({
             </div>
           </div>
 
-          <div>
+          {
+             isHR && (
+                <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Department
             </label>
@@ -430,7 +434,12 @@ export const AddEmployeeModal = ({
               ))}
             </select>
           </div>
+            )
+          }
 
+           {
+            isHR && (
+                
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Designation
@@ -458,9 +467,13 @@ export const AddEmployeeModal = ({
               ))}
             </select>
           </div>
-
+            )
+           }
           {/* Reporting Manager Dropdown */}
-          <div>
+
+
+         {isHR && (
+            <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Reporting Manager
             </label>
@@ -487,8 +500,11 @@ export const AddEmployeeModal = ({
               ))}
             </select>
           </div>
+         )} 
 
-          <div>
+         {
+          isHR &&(
+               <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
               Employment Status
             </label>
@@ -504,6 +520,8 @@ export const AddEmployeeModal = ({
               <option value="on_notice">On Notice</option>
             </select>
           </div>
+          )
+         }
 
           <div className="pt-2">
             <button

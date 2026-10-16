@@ -72,6 +72,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Global Fetch Interceptor: Automatically injects fresh tokens into all /api/ calls
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const urlString =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+          ? input.toString()
+          : input.url;
+
+      if (urlString.startsWith("/api/")) {
+        try {
+          // Proactively refresh the token if it's expiring within 30 seconds
+          await keycloak.updateToken(30);
+          if (keycloak.token) {
+            init = init || {};
+            init.headers = {
+              ...(init.headers || {}),
+              Authorization: `Bearer ${keycloak.token}`,
+            };
+          }
+        } catch (e) {
+          console.error("Automatic background token refresh failed:", e);
+        }
+      }
+
+      return originalFetch(input, init);
+    };
+
+    return () => {
+      window.fetch = originalFetch; // Cleanup interceptor on unmount
+    };
+  }, []);
+
   useEffect(() => {
     const initKeycloak = async () => {
       if (initialized.current) return;
