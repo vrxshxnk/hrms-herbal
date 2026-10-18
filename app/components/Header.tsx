@@ -7,7 +7,6 @@ import {
   UserRound,
   CircleHelp,
   LogOut,
-  UserMinus,
   CheckCheck,
   X,
   CalendarDays,
@@ -256,7 +255,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
 
       <div className="flex items-center gap-3 sm:gap-6 shrink-0">
         <div className="hidden lg:flex items-center gap-5 text-xs font-semibold text-slate-500">
-          <span className="text-slate-400">People & culture</span>
           <Link href="/faq" className="hover:text-slate-900">Help center</Link>
         </div>
 
@@ -439,16 +437,6 @@ const Header = ({ toggleSidebar }: HeaderProps) => {
                   </button>
                 </div>
 
-                <div className="border-t border-slate-100 py-1">
-                  <Link
-                    href="/resignation"
-                    onClick={() => setIsUserOpen(false)}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-xs text-red-500 hover:bg-red-50 transition-colors"
-                  >
-                    <UserMinus className="w-4 h-4" />
-                    <span>Resignation And Exit</span>
-                  </Link>
-                </div>
               </div>
             )}
           </div>

@@ -14,8 +14,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "../context/AuthContext";
-import { AddEmployeeModal } from "../modals/AddEmployeeModal";
-import { TempPasswordModal } from "../modals/TempPasswordModal";
 
 interface DashboardStats {
   totalEmployees: number;
@@ -272,9 +270,6 @@ export default function DashboardPage() {
   const [charts, setCharts] = useState<DashboardCharts>({});
   const [loading, setLoading] = useState<boolean>(true);
 
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [createdCredentials, setCreatedCredentials] = useState<any>(null);
-  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -303,14 +298,6 @@ export default function DashboardPage() {
     if (!token) return;
     fetchStats();
   }, [token, fetchStats]);
-
-  const handleModalSuccess = async (createdData?: any) => {
-    await fetchStats();
-    if (createdData?.temporary_password) {
-      setCreatedCredentials(createdData);
-      setIsPasswordModalOpen(true);
-    }
-  };
 
   const statCards = [
     {
@@ -453,25 +440,13 @@ export default function DashboardPage() {
     : "User";
   return (
     <div className="space-y-6">
-      <AddEmployeeModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSuccess={handleModalSuccess}
-        employeeToEdit={null}
-      />
-      <TempPasswordModal
-        isOpen={isPasswordModalOpen}
-        onClose={() => setIsPasswordModalOpen(false)}
-        data={createdCredentials}
-      />
-
       <div className="page-intro">
-        <div><p className="eyebrow">Your workspace</p><h1>Overview</h1><p>A clear view of your people and the day ahead.</p></div>
+        <div><p className="eyebrow">Your workspace</p><h1>Overview</h1></div>
         <span className="text-xs text-slate-500 flex items-center gap-2"><Calendar size={15} />{currentDateFormatted}</span>
       </div>
       <section className="overview-hero">
         <div><p className="eyebrow">A little clarity for your day</p><h1>{greeting.text}, {formattedName.split(" ")[0]}.</h1><p>{hasManagerRole ? "Keep your team moving. Review requests, manage time, and stay connected." : "Your time, requests, and updates. Everything you need in one place."}</p></div>
-        {hasHrRole ? <button type="button" onClick={() => setIsModalOpen(true)} className="button-primary shrink-0"><Plus size={16} />Add employee</button> : <Link href="/leave" className="button-primary shrink-0"><Plus size={16} />Request time off</Link>}
+        {!hasHrRole && <Link href="/leave" className="button-primary shrink-0"><Plus size={16} />Request time off</Link>}
       </section>
       {hasHrRole && <div className="overview-stats">
         {statCards.map(stat => <div key={stat.title} className="overview-stat">

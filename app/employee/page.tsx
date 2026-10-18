@@ -151,7 +151,7 @@ const EmployeePage = () => {
       )}
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-slate-900">
             People directory <span className="ml-2 text-sm font-medium text-slate-500">{total} people</span>
           </h1>
@@ -160,11 +160,12 @@ const EmployeePage = () => {
 
         {hasHrRole && (
           <button
+            type="button"
             onClick={handleOpenAddModal}
-            className="flex items-center justify-center gap-2 bg-[#24563E] hover:bg-[#19392C] text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-colors w-full sm:w-auto"
+            className="button-primary shrink-0 self-start whitespace-nowrap sm:self-center"
           >
-            <Plus className="w-4 h-4" />
-            Add Employee
+            <Plus className="h-4 w-4 shrink-0" aria-hidden="true" />
+            Add employee
           </button>
         )}
       </div>
