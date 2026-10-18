@@ -1,8 +1,10 @@
 import { getPool, withTranscations } from "@/app/lib/api/client";
 import { apiError, ok } from "@/app/lib/api/response";
 import { parseJson } from "@/app/lib/api/validation";
-import { createEmployeeSchema } from "@/app/validations/phase1_schema";
+import { updateEmployeeSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
+import { hasHRRole } from "@/app/lib/auth/roles";
+import { errorMessage } from "@/app/lib/api/errors";
 
 export async function GET(
   request: Request,
@@ -40,7 +42,7 @@ export async function GET(
       WHERE e.id = $1
     `;
 
-    const queryParams: any[] = [id];
+    const queryParams: unknown[] = [id];
     if (!isHR) {
       singleQuery += isManager
         ? ` AND (e.keycloak_id = $2 OR e.reporting_manager_id = (SELECT id FROM employees WHERE keycloak_id = $2) OR e.super_manager_id = (SELECT id FROM employees WHERE keycloak_id = $2))`
@@ -55,9 +57,9 @@ export async function GET(
     }
 
     return ok(result.rows[0]);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching employee by ID:", error);
-    return apiError("UNAUTHORIZED", error.message || "Failed to fetch employee", 401);
+    return apiError("UNAUTHORIZED", errorMessage(error, "Failed to fetch employee"), 401);
   } finally {
     client.release();
   }
@@ -69,7 +71,7 @@ export async function DELETE(
 ) {
   try {
     const authUser = await getAuthenticatedUser(request);
-    if (!authUser.roles.includes("hr")) {
+    if (!hasHRRole(authUser.roles)) {
       return apiError("FORBIDDEN", "You do not have permission to delete employee records", 403);
     }
 
@@ -96,7 +98,7 @@ export async function DELETE(
     } finally {
       client.release();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting employee:", error);
     return apiError("INTERNAL_ERROR", "Failed to delete employee", 500);
   }
@@ -109,16 +111,16 @@ export async function PATCH(
   try {
    
     const authUser = await getAuthenticatedUser(request);
-    if (!authUser.roles.includes("hr")) {
+    if (!hasHRRole(authUser.roles)) {
       return apiError("FORBIDDEN", "You do not have permission to update employee records", 403);
     }
 
     const { id } = await params;
-    const parsed = await parseJson(request, createEmployeeSchema);
+    const parsed = await parseJson(request, updateEmployeeSchema);
     if (parsed.error) return parsed.error;
 
     const data = parsed.data;
-    const keys = Object.keys(data);
+    const keys = Object.keys(data).filter((key) => data[key as keyof typeof data] !== undefined);
 
     if (keys.length === 0) {
       return apiError("BAD_REQUEST", "No valid fields provided to update", 400);
@@ -126,7 +128,7 @@ export async function PATCH(
 
     const updatedRecord = await withTranscations(async (client) => {
       const setClause = keys.map((key, index) => `"${key}" = $${index + 1}`).join(", ");
-      const values = Object.values(data);
+      const values = keys.map((key) => data[key as keyof typeof data]);
       const targetIdIndex = values.length + 1;
       const updateQuery = `
         UPDATE employees 

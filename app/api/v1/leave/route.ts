@@ -4,6 +4,7 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { createLeaveRequestSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 import { createNotification } from "@/app/lib/api/notifications";
+import { errorMessage, isWorkflowError } from "@/app/lib/api/errors";
 
 export async function GET(request: Request) {
   const client = await getPool().connect();
@@ -21,17 +22,12 @@ export async function GET(request: Request) {
     const page = Math.max(1, Number(searchParams.get("page")) || 1);
     const offset = (page - 1) * limit;
 
-    const queryParams: any[] = [];
+    const queryParams: unknown[] = [];
     const whereConditions: string[] = [];
 
     if (isHR) {
-      // HR ko:
-      // 1. Dusron ki wahi leaves dikhe jahan manager_approval_status = 'Approved'
-      // 2. Apni khud ki SAARI leaves dikhe (OR e.keycloak_id = $authuser.sub)
-      queryParams.push(authuser.sub);
-      whereConditions.push(
-        `(lr.manager_approval_status = 'Approved' OR e.keycloak_id = $${queryParams.length})`
-      );
+      // HR needs the full history, including requests without a manager and rejections.
+      // Final approval still enforces manager review in the PATCH endpoint.
 
       if (status) {
         queryParams.push(status);
@@ -83,7 +79,7 @@ export async function GET(request: Request) {
         e.reporting_manager_id,
         COALESCE(e.display_name, CONCAT(e.first_name, ' ', e.last_name)) AS employee_name,
         e.profile_photo_url,
-        des.title AS department,
+        d.name AS department,
         lt.name AS leave_type,
         lt.id AS leave_type_id,
         lr.total_days,
@@ -135,9 +131,9 @@ export async function GET(request: Request) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching leave requests list:", error);
-    return apiError("UNAUTHORIZED", error.message || "Failed to fetch leave requests list", 401);
+    return apiError("UNAUTHORIZED", errorMessage(error, "Failed to fetch leave requests list"), 401);
   } finally {
     client.release();
   }
@@ -244,7 +240,7 @@ export async function POST(request: Request) {
          FROM leave_requests
          WHERE employee_id = $1
            AND half_day_type IN ('first_half', 'second_half')
-           AND status != 'Rejected'
+           AND status NOT IN ('Rejected', 'Withdrawn')
            AND EXTRACT(YEAR FROM start_date) = $2
            AND EXTRACT(MONTH FROM start_date) = $3`,
         [targetEmployeeId, reqYear, reqMonth]
@@ -264,7 +260,7 @@ export async function POST(request: Request) {
          FROM leave_requests
          WHERE employee_id = $1
            AND half_day_type IN ('first_half', 'second_half')
-           AND status != 'Rejected'
+           AND status NOT IN ('Rejected', 'Withdrawn')
            AND EXTRACT(YEAR FROM start_date) = $2`,
         [targetEmployeeId, reqYear]
       );
@@ -331,6 +327,30 @@ export async function POST(request: Request) {
 
       const createdLeaveRequest = result.rows[0];
 
+      // Requests created as approved must use the same balance accounting as
+      // requests approved later. Keep the insert and deduction atomic.
+      if (initialOverallStatus === "Approved") {
+        const year = Number(data.start_date.slice(0, 4));
+        await txClient.query(
+          `INSERT INTO employee_leave_balances
+             (employee_id, leave_type_id, year, total_leaves_avail, monthly_limit, used_leaves)
+           VALUES ($1, $2, $3, 15.0, 1.5, 0.0)
+           ON CONFLICT (employee_id, leave_type_id, year) DO NOTHING`,
+          [targetEmployeeId, createdLeaveRequest.leave_type_id, year],
+        );
+        const balance = await txClient.query(
+          `UPDATE employee_leave_balances
+           SET used_leaves = used_leaves + $1, updated_at = CURRENT_TIMESTAMP
+           WHERE employee_id = $2 AND leave_type_id = $3 AND year = $4
+             AND total_leaves_avail - used_leaves >= $1
+           RETURNING employee_id`,
+          [totalDaysToDeduct, targetEmployeeId, createdLeaveRequest.leave_type_id, year],
+        );
+        if (balance.rowCount === 0) {
+          throw { code: "BAD_REQUEST", message: "Insufficient leave balance for this approved request.", status: 400 };
+        }
+      }
+
       // Fetch employee & reporting manager details
       const empDetailsRes = await txClient.query(
         `SELECT
@@ -384,11 +404,14 @@ export async function POST(request: Request) {
       message: "Leave request submitted successfully",
       data: newLeave,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating leave request:", error);
+    if (isWorkflowError(error)) {
+      return apiError(error.code, error.message, error.status);
+    }
     return apiError(
       "INTERNAL_ERROR",
-      error.message || "Failed to create leave request",
+      "Failed to create leave request",
       500
     );
   } finally {

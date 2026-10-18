@@ -3,6 +3,7 @@
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
   useRef,
@@ -10,12 +11,32 @@ import {
 } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import keycloak from "../lib/keycloak";
+import type { KeycloakTokenParsed } from "keycloak-js";
+import { createSessionFetch } from "../lib/auth/session-fetch";
+
+interface AuthEmployee {
+  id: string;
+  first_name?: string;
+  last_name?: string;
+  display_name?: string;
+  employee_code?: string;
+  system_role?: string;
+}
+
+function normalizeRoles(rawRoles: string[]): string[] {
+  const list = Array.from(new Set(rawRoles));
+  const hasElevatedRole = list.some((role) =>
+    ["manager", "hr", "admin", "hr_admin", "hradmin", "system_admin", "super_manager"].includes(role.toLowerCase()),
+  );
+  if (!hasElevatedRole && !list.includes("employee")) list.push("employee");
+  return list;
+}
 
 interface AuthContextType {
   authenticated: boolean;
   token: string | null;
-  user: any;
-  dbUser: any;
+  user: KeycloakTokenParsed | null;
+  dbUser: AuthEmployee | null;
   roles: string[];
   loading: boolean;
   login: () => void;
@@ -30,28 +51,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const pathname = usePathname();
   const router = useRouter();
+  const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
 
   const [authenticated, setAuthenticated] = useState(false);
   const [token, setToken] = useState<string | null>(null);
-  const [user, setUser] = useState<any>(null);
-  const [dbUser, setDbUser] = useState<any>(null);
+  const [user, setUser] = useState<KeycloakTokenParsed | null>(null);
+  const [dbUser, setDbUser] = useState<AuthEmployee | null>(null);
   const [loading, setLoading] = useState(true);
   const [roles, setRoles] = useState<string[]>([]);
 
-  // Helper to ensure 'employee' role exists if neither manager nor hr are assigned
-  const normalizeRoles = (rawRoles: string[]): string[] => {
-    const list = Array.from(new Set(rawRoles));
-    const hasElevatedRole = list.some((r) =>
-      ["manager", "hr", "admin"].includes(r.toLowerCase())
-    );
-
-    if (!hasElevatedRole && !list.includes("employee")) {
-      list.push("employee");
-    }
-    return list;
-  };
-
-  const syncWithDatabase = async () => {
+  const syncWithDatabase = useCallback(async () => {
     try {
       if (!keycloak.token) return;
 
@@ -70,7 +80,23 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (error) {
       console.error("Failed to sync employee with database:", error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const originalFetch = window.fetch;
+    const sessionFetch = createSessionFetch(originalFetch.bind(window), window.location.origin, keycloak, () => {
+      setToken(keycloak.token ?? null);
+      setUser(keycloak.tokenParsed ?? null);
+      setRoles(normalizeRoles([
+        ...(keycloak.tokenParsed?.realm_access?.roles ?? []),
+        ...(keycloak.tokenParsed?.resource_access?.["hrms-app"]?.roles ?? []),
+      ]));
+    });
+    window.fetch = sessionFetch;
+    return () => {
+      if (window.fetch === sessionFetch) window.fetch = originalFetch;
+    };
+  }, []);
 
   useEffect(() => {
     const initKeycloak = async () => {
@@ -97,7 +123,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
           await syncWithDatabase();
 
-          if (pathname === "/login") {
+          if (pathnameRef.current === "/login") {
             router.replace("/");
           }
 
@@ -136,7 +162,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setDbUser(null);
           setRoles([]);
 
-          if (pathname !== "/login") {
+          if (pathnameRef.current !== "/login") {
             router.replace("/login");
           }
         }
@@ -147,7 +173,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(null);
         setDbUser(null);
         setRoles([]);
-        if (pathname !== "/login") {
+        if (pathnameRef.current !== "/login") {
           router.replace("/login");
         }
       } finally {
@@ -162,7 +188,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         clearInterval(intervalRef.current);
       }
     };
-  }, [pathname, router]);
+  }, [router, syncWithDatabase]);
 
   const login = () => keycloak.login();
 

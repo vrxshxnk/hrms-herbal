@@ -2,6 +2,9 @@ import { apiError, ok } from "@/app/lib/api/response";
 import { withTranscations } from "@/app/lib/api/client";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
 import { createNotification } from "@/app/lib/api/notifications";
+import { hasAdminRole, hasHRRole, hasManagerRole } from "@/app/lib/auth/roles";
+import { z } from "zod";
+import { isWorkflowError } from "@/app/lib/api/errors";
 
 export async function PATCH(
   request: Request,
@@ -9,21 +12,34 @@ export async function PATCH(
 ) {
   try {
     const params = await props.params;
-    const body = await request.json();
+    const payload = z.object({
+      id: z.string().optional(),
+      action: z.string().optional(),
+      status: z.string().optional(),
+      rejection_reason: z.string().nullable().optional(),
+    }).safeParse(await request.json().catch(() => null));
+    if (!payload.success) {
+      return apiError("BAD_REQUEST", "A valid leave action payload is required.", 400);
+    }
+    const body = payload.data;
     const leaveId = params?.id || body.id;
 
     // 1. Auth & Role Extraction
     const authuser = await getAuthenticatedUser(request);
-    const isHR = authuser.roles.includes("hr");
-    const isManager = authuser.roles.includes("manager");
+    const isHR = hasHRRole(authuser.roles);
+    const isManager = hasManagerRole(authuser.roles);
+    if (!z.uuid().safeParse(leaveId).success) {
+      return apiError("BAD_REQUEST", "A valid leave request ID is required.", 400);
+    }
 
     // 2. Normalize Payload Action
     const rawAction = body.action || body.status;
-    const computedAction = rawAction?.toLowerCase().includes("withdraw")
+    const normalizedAction = typeof rawAction === "string" ? rawAction.toLowerCase() : "";
+    const computedAction = ["withdraw", "withdrawn"].includes(normalizedAction)
       ? "withdraw"
-      : rawAction?.toLowerCase().includes("reject")
+      : ["reject", "rejected"].includes(normalizedAction)
         ? "reject"
-        : rawAction?.toLowerCase().includes("appr")
+        : ["approve", "approved"].includes(normalizedAction)
           ? "approve"
           : null;
 
@@ -38,7 +54,7 @@ export async function PATCH(
       );
     }
 
-    if (computedAction === "reject" && !body.rejection_reason) {
+    if (computedAction === "reject" && (typeof body.rejection_reason !== "string" || !body.rejection_reason.trim())) {
       return apiError(
         "BAD_REQUEST",
         "A rejection reason is required when rejecting!",
@@ -88,6 +104,7 @@ export async function PATCH(
             lr.status, 
             lr.manager_approval_status,
             e.reporting_manager_id,
+            e.super_manager_id,
             e.keycloak_id AS owner_keycloak_id,
             lt.name AS leave_type_name
          FROM leave_requests lr
@@ -133,10 +150,10 @@ export async function PATCH(
           };
         }
 
-        if (currentStatus === "Withdrawn") {
+        if (currentStatus === "Withdrawn" || currentStatus === "Rejected") {
           throw {
             code: "BAD_REQUEST",
-            message: "Leave request has already been withdrawn.",
+            message: "This leave request is already closed.",
             status: 400,
           };
         }
@@ -182,7 +199,19 @@ export async function PATCH(
       // ==========================================
       // ACTION 2: MANAGER APPROVAL / REJECTION
       // ==========================================
+      if (owner_keycloak_id === authuser.sub && !hasAdminRole(authuser.roles)) {
+        throw { code: "FORBIDDEN", message: "You cannot approve or reject your own leave request.", status: 403 };
+      }
+      if (currentStatus === "Withdrawn" || currentStatus === "Rejected") {
+        throw { code: "CONFLICT", message: "This leave request is already closed. Submit a new request instead.", status: 409 };
+      }
       if (isManager && !isHR) {
+        if (reporting_manager_id !== actorEmployee.id && leaveRequest.super_manager_id !== actorEmployee.id) {
+          throw { code: "FORBIDDEN", message: "You can only review leave requests for your assigned team.", status: 403 };
+        }
+        if (currentStatus !== "Pending" || manager_approval_status !== "Pending") {
+          throw { code: "CONFLICT", message: "This request has already been reviewed.", status: 409 };
+        }
         const mgrStatus = computedAction === "reject" ? "Rejected" : "Approved";
 
         const updateRes = await client.query(
@@ -338,9 +367,9 @@ export async function PATCH(
       message: `Leave request status updated to '${resultData.newStatus}'`,
       data: resultData.updatedRecord,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating leave request status:", error);
-    if (error?.code && error?.message) {
+    if (isWorkflowError(error)) {
       return apiError(error.code, error.message, error.status || 400);
     }
     return apiError(

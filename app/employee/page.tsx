@@ -52,14 +52,14 @@ const EmployeePage = () => {
     null,
   );
 
-  const [createdCredentials, setCreatedCredentials] = useState<any>(null);
+  const [createdCredentials, setCreatedCredentials] = useState<(Employee & { temporary_password?: string }) | null>(null);
   const [isPasswordModalOpen, setIsPasswordModalOpen]= useState(false);
 
   const { roles, token } = useAuth();
   const hasHrRole = ["hr", "hr_admin", "hradmin", "admin", "system_admin"].some((role) => roles.includes(role));
-  const hasEmpRoles = roles.includes("employee");
 
   const fetchEmployees = useCallback(async () => {
+    if (!token) return;
     setLoading(true);
     try {
       const params = new URLSearchParams();
@@ -86,9 +86,9 @@ const EmployeePage = () => {
     } finally {
       setLoading(false);
     }
-  }, [search, activeTab]);
+  }, [search, activeTab, token]);
 
-  const handleModalSuccess = async(createdData?: any)=>{
+  const handleModalSuccess = async(createdData?: Employee & { temporary_password?: string })=>{
      await fetchEmployees();
      if(createdData?.temporary_password){
        setCreatedCredentials(createdData);
@@ -110,7 +110,6 @@ const EmployeePage = () => {
 
   const handleOpenEditModal = (emp: Employee) => {
     setSelectedEmployee(emp);
-    console.log("emp m hu :", emp);
     setIsModalOpen(true);
     setOpenMenuId(null);
   };
@@ -129,15 +128,16 @@ const EmployeePage = () => {
     try {
       const res = await fetch(`/api/v1/employee/${id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
       const json = await res.json();
       if (!res.ok) {
-        throw new Error(json.message || "Failed to delete employee");
+        throw new Error(json.error?.message || "Failed to deactivate employee");
       }
       setEmployees((prev) => prev.filter((emp) => emp.id !== id));
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error deleting employee:", error);
-      alert(error.message || "An error occurred while deleting.");
+      alert(error instanceof Error ? error.message : "An error occurred while deactivating the employee.");
     }
   };
 

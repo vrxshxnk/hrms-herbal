@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 type AddEmployeeModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (data?: any) => void | Promise<void>;
+  onSuccess: (data?: Employee & { temporary_password?: string }) => void | Promise<void>;
   employeeToEdit?: Employee | null;
 };
 
@@ -55,6 +55,7 @@ export const AddEmployeeModal = ({
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [loadingDesignations, setLoadingDesignations] = useState(false);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
+  const [managerLoadError, setManagerLoadError] = useState<string | null>(null);
 
   const { token, hasRole } = useAuth();
   const isEditMode = Boolean(employeeToEdit);
@@ -88,42 +89,58 @@ export const AddEmployeeModal = ({
 
 
   useEffect(() => {
-    if (!isOpen || !token || !formData.department_id) {
-      setEmployees([]);
-      return;
-    }
+    if (!isOpen || !token || !isHR) return;
+    const controller = new AbortController();
 
-    const fetchEmployeesByDept = async () => {
+    const fetchManagers = async () => {
       setLoadingEmployees(true);
+      setManagerLoadError(null);
       try {
-        const res = await fetch(
-          `/api/v1/employee?department_id=${encodeURIComponent(formData.department_id)}&limit=100`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        const result = await res.json();
-        const empList = result?.data?.data || result?.data || result?.employees || [];
-
-        // Agar edit mode hai, toh khud ko manager list se hata dein
-        const filteredList = isEditMode
-          ? empList.filter((emp: Employee) => emp.id !== employeeToEdit?.id)
-          : empList;
-
-        setEmployees(Array.isArray(filteredList) ? filteredList : []);
+        const allEmployees: Employee[] = [];
+        let page = 1;
+        let totalPages = 1;
+        do {
+          const res = await fetch(`/api/v1/employee?limit=100&page=${page}`, {
+            headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+          });
+          const result = await res.json();
+          if (!res.ok || !Array.isArray(result?.data?.data)) {
+            throw new Error("Unable to load reporting managers. Please reopen this form to retry.");
+          }
+          allEmployees.push(...result.data.data);
+          totalPages = result.data.meta?.totalPages || 1;
+          page += 1;
+        } while (page <= totalPages);
+        // Retain an existing inactive manager so unrelated edits do not lose it.
+        const managerId = employeeToEdit?.reporting_manager_id;
+        if (managerId && !allEmployees.some((employee) => employee.id === managerId)) {
+          const res = await fetch(`/api/v1/employee/${managerId}`, {
+            headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
+          });
+          const result = await res.json();
+          if (!res.ok || !result.data?.id) throw new Error("Unable to load the current reporting manager.");
+          allEmployees.push(result.data);
+        }
+        if (!controller.signal.aborted) {
+          setEmployees(allEmployees.filter((employee) => employee.id !== employeeToEdit?.id)
+            .sort((a, b) => (a.display_name || a.first_name).localeCompare(b.display_name || b.first_name)));
+        }
       } catch (error) {
-        console.log("Failed to load department employees", error);
-        setEmployees([]);
+        if (!controller.signal.aborted) {
+          setManagerLoadError(error instanceof Error ? error.message : "Unable to load reporting managers.");
+        }
       } finally {
-        setLoadingEmployees(false);
+        if (!controller.signal.aborted) setLoadingEmployees(false);
       }
     };
 
-    fetchEmployeesByDept();
-  }, [isOpen, token, formData.department_id, isEditMode, employeeToEdit]);
+    void fetchManagers();
+    return () => controller.abort();
+  }, [isOpen, token, isHR, employeeToEdit]);
 
   // Fetch Designations based on Department selection
   useEffect(() => {
     if (!isOpen || !token || !formData.department_id) {
-      setDesignation([]);
       return;
     }
     const fetchDesignation = async () => {
@@ -151,6 +168,8 @@ export const AddEmployeeModal = ({
   // Populate Form Data on Edit
   useEffect(() => {
     if (employeeToEdit) {
+      // Reset this draft when the caller opens a different employee record.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
         fullName:
           employeeToEdit.display_name ||
@@ -180,7 +199,9 @@ export const AddEmployeeModal = ({
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    setFormData({ ...formData, [e.target.name]: e.target.value,
+      ...(e.target.name === "department_id" ? { designation_id: "" } : {}),
+    });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -216,9 +237,7 @@ export const AddEmployeeModal = ({
       department_id: formData.department_id || null,
       designation_id: formData.designation_id || null,
       reporting_manager_id: formData.reporting_manager_id || null,
-      employment_type: "permanent",
-      employee_category: "staff",
-      preferred_language: "english",
+      ...(!isEditMode ? { employment_type: "permanent", employee_category: "staff", preferred_language: "english" } : {}),
     };
 
     try {
@@ -256,7 +275,7 @@ export const AddEmployeeModal = ({
         }
       } else {
         setErrorMsg(
-          result.message ||
+          result.error?.message || result.message ||
             `Failed to ${isEditMode ? "update" : "create"} employee`
         );
       }
@@ -481,16 +500,14 @@ export const AddEmployeeModal = ({
               name="reporting_manager_id"
               value={formData.reporting_manager_id}
               onChange={handleChange}
-              disabled={!formData.department_id || loadingEmployees}
+              disabled={loadingEmployees || Boolean(managerLoadError)}
               className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-700 focus:outline-none focus:border-[#24563E] disabled:bg-slate-50 disabled:cursor-not-allowed"
             >
               <option value="">
-                {!formData.department_id
-                  ? "Select Department First"
-                  : loadingEmployees
-                  ? "Loading department employees..."
+                {loadingEmployees
+                  ? "Loading reporting managers..."
                   : employees.length === 0
-                  ? "No employees found in this department"
+                  ? "No employees available"
                   : "Select Reporting Manager (Optional)"}
               </option>
               {employees.map((emp) => (
@@ -499,6 +516,7 @@ export const AddEmployeeModal = ({
                 </option>
               ))}
             </select>
+            {managerLoadError && <p role="alert" className="mt-1.5 text-xs text-red-600">{managerLoadError}</p>}
           </div>
          )}
 
@@ -526,7 +544,7 @@ export const AddEmployeeModal = ({
           <div className="pt-2">
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || (isHR && (loadingEmployees || Boolean(managerLoadError)))}
               className="w-full flex items-center justify-center gap-2 bg-[#24563E] hover:bg-[#19392C] text-white py-3 rounded-xl font-semibold text-sm transition-colors disabled:opacity-50"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}

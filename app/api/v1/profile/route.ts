@@ -7,7 +7,7 @@ import { z } from "zod";
 
 const profileUpdateSchema = z.object({
   personal_email: z.union([z.email().max(200), z.literal("")]).optional(),
-  mobile_number: z.string().max(20).optional(),
+  mobile_number: z.string().trim().min(8, "A valid mobile number is required").max(20).optional(),
   alternate_mobile: z.string().max(20).optional(),
   current_address: z.string().max(2000).optional(),
   permanent_address: z.string().max(2000).optional(),
@@ -15,7 +15,7 @@ const profileUpdateSchema = z.object({
   state: z.string().max(100).optional(),
   country: z.string().max(100).optional(),
   postal_code: z.string().max(20).optional(),
-  marital_status: z.string().max(30).optional(),
+  marital_status: z.enum(["single", "married", "divorced", "widowed"]).optional(),
   nationality: z.string().max(100).optional(),
   preferred_language: z.string().max(50).optional(),
   display_name: z.string().max(200).optional(),
@@ -105,63 +105,21 @@ export async function PUT(request: Request) {
     if (parsed.error) return parsed.error;
     const body = parsed.data;
 
-    // Allowed fields jo user khud update kar sakta hai (Security rule: roles/departments update nahi honge)
-    const {
-      personal_email,
-      mobile_number,
-      alternate_mobile,
-      current_address,
-      permanent_address,
-      city,
-      state,
-      country,
-      postal_code,
-      marital_status,
-      nationality,
-      preferred_language,
-      display_name,
-      profile_photo_url,
-    } = body;
-
+    // Keys come exclusively from the strict allowlist above. Omitted fields stay
+    // unchanged; explicitly empty optional fields are cleared.
+    const entries = Object.entries(body).filter(([, value]) => value !== undefined);
+    if (entries.length === 0) {
+      return apiError("BAD_REQUEST", "No profile changes provided", 400);
+    }
+    const assignments = entries.map(([key], index) => `"${key}" = $${index + 1}`);
+    const values = entries.map(([, value]) => value === "" ? null : value);
+    values.push(employeeId);
     const updateQuery = `
       UPDATE employees
-      SET
-        personal_email = COALESCE($1, personal_email),
-        mobile_number = COALESCE($2, mobile_number),
-        alternate_mobile = COALESCE($3, alternate_mobile),
-        current_address = COALESCE($4, current_address),
-        permanent_address = COALESCE($5, permanent_address),
-        city = COALESCE($6, city),
-        state = COALESCE($7, state),
-        country = COALESCE($8, country),
-        postal_code = COALESCE($9, postal_code),
-        marital_status = COALESCE($10, marital_status),
-        nationality = COALESCE($11, nationality),
-        preferred_language = COALESCE($12, preferred_language),
-        display_name = COALESCE($13, display_name),
-        profile_photo_url = COALESCE($14, profile_photo_url),
-        updated_at = CURRENT_TIMESTAMP
-      WHERE id = $15
+      SET ${assignments.join(", ")}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $${values.length}
       RETURNING *;
     `;
-
-    const values = [
-      personal_email || null,
-      mobile_number || null,
-      alternate_mobile || null,
-      current_address || null,
-      permanent_address || null,
-      city || null,
-      state || null,
-      country || null,
-      postal_code || null,
-      marital_status || null,
-      nationality || null,
-      preferred_language || null,
-      display_name || null,
-      profile_photo_url || null,
-      employeeId,
-    ];
 
     const updateResult = await client.query(updateQuery, values);
 

@@ -4,9 +4,25 @@ import { useEffect, useState, useRef } from "react";
 import { useAuth } from "../context/AuthContext";
 import { AlertCircle, MessageSquareText, RotateCcw, Eye } from "lucide-react";
 import { LeaveTrackModal, LeaveRequest } from "./LeaveTrackModal";
+import { hasHRRole, hasManagerRole } from "../lib/auth/roles";
+
+interface LeaveRow extends LeaveRequest {
+  employee_id: string;
+  leave_type_id?: string;
+  employee_email?: string;
+  keycloak_id?: string;
+  profile_photo_url?: string;
+}
+
+interface LeaveBalance {
+  leave_type_id?: string;
+  leave_type_name?: string;
+  remaining_leaves?: number | string;
+  total_leaves_avail?: number | string;
+}
 
 interface EmployeeLeaveTableProps {
-  data: any[];
+  data: LeaveRow[];
   isLoading: boolean;
   onRefresh: () => void;
 }
@@ -16,18 +32,15 @@ export default function EmployeeLeaveTable({
   isLoading,
   onRefresh,
 }: EmployeeLeaveTableProps) {
-  const { user, roles, hasRole, token } = useAuth();
+  const { user, roles, token } = useAuth();
 
-  const isHR =
-    hasRole("hr") || roles.includes("hr") || user?.system_role?.toLowerCase() === "hr";
-  const isManager =
-    hasRole("manager") ||
-    roles.includes("manager") ||
-    user?.system_role?.toLowerCase() === "manager";
+  const isHR = hasHRRole(roles);
+  const isManager = hasManagerRole(roles);
   const hasActionRole = isHR || isManager;
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [updatingId, setUpdatingId] = useState<string | null>(null);
-  const [balanceMap, setBalanceMap] = useState<Record<string, any[]>>({});
+  const [balanceMap, setBalanceMap] = useState<Record<string, LeaveBalance[]>>({});
   const [rejectingLeaveId, setRejectingLeaveId] = useState<string | null>(null);
   const [rejectionReasonInput, setRejectionReasonInput] = useState("");
   const [reasonError, setReasonError] = useState("");
@@ -77,10 +90,10 @@ export default function EmployeeLeaveTable({
         });
         const result = await res.json();
         const rawData = result?.data?.data || result?.data || [];
-        const map: Record<string, any[]> = {};
+        const map: Record<string, LeaveBalance[]> = {};
 
         if (Array.isArray(rawData)) {
-          rawData.forEach((emp: any) => {
+          rawData.forEach((emp: { employee_id?: string; balances?: LeaveBalance[] }) => {
             if (emp.employee_id) {
               map[emp.employee_id] = emp.balances || [];
             }
@@ -119,6 +132,7 @@ export default function EmployeeLeaveTable({
 
     try {
       setUpdatingId(id);
+      setActionError(null);
       const res = await fetch(`/api/v1/leave/${id}`, {
         method: "PATCH",
         headers: {
@@ -136,9 +150,13 @@ export default function EmployeeLeaveTable({
       if (res.ok) {
         closeRejectModal();
         onRefresh();
+      } else {
+        const result = await res.json();
+        setActionError(result?.error?.message || "Unable to update this leave request.");
       }
     } catch (error) {
       console.error("Failed to update status:", error);
+      setActionError("Unable to update this leave request. Please try again.");
     } finally {
       setUpdatingId(null);
     }
@@ -186,12 +204,12 @@ export default function EmployeeLeaveTable({
     });
   };
 
-  const getBalanceDisplay = (row: any) => {
+  const getBalanceDisplay = (row: LeaveRow) => {
     const empBalances = balanceMap[row.employee_id];
     if (!empBalances || empBalances.length === 0) return "-";
 
     const matched = empBalances.find(
-      (b: any) =>
+      (b) =>
         b.leave_type_id === row.leave_type_id ||
         b.leave_type_name?.toLowerCase() === row.leave_type?.toLowerCase(),
     );
@@ -204,21 +222,15 @@ export default function EmployeeLeaveTable({
     return `${matched.remaining_leaves} / ${matched.total_leaves_avail}`;
   };
 
-  const visibleData = data.filter((row) => {
-    if (isHR) {
-      const managerStatus =
-        row.manager_approval_status ?? (row.reporting_manager_id ? "Pending" : "N/A");
-      return managerStatus === "Approved" || !row.reporting_manager_id;
-    }
-    return true;
-  });
+  const visibleData = data;
 
   return (
     <>
       <div className="w-full bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
+        {actionError && <p role="alert" className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{actionError}</p>}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <h2 className="text-lg font-semibold text-gray-800">
-            Employee's Leave
+            Employee Leave
           </h2>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -271,7 +283,7 @@ export default function EmployeeLeaveTable({
                 </tr>
               ) : (
                 visibleData.map((row) => {
-                  const leaveId = row.id || row.request_id;
+                  const leaveId = row.id || row.request_id || "";
 
                   const managerStatus =
                     row.manager_approval_status ??
@@ -421,7 +433,7 @@ export default function EmployeeLeaveTable({
                         <div className="flex items-center justify-center gap-2">
                         {hasActionRole && !isOwnRequest && (
                             <>
-                              {row.status !== "Approved" && row.status !== "Withdrawn" && (
+                              {row.status === "Pending" && (isHR || managerStatus === "Pending") && (
                                 <button
                                   disabled={
                                     updatingId === leaveId ||
@@ -440,7 +452,7 @@ export default function EmployeeLeaveTable({
                                   Approve
                                 </button>
                               )}
-                              {row.status !== "Rejected" && row.status !== "Withdrawn" && (
+                              {(row.status === "Pending" || (isHR && row.status === "Approved")) && (isHR || managerStatus === "Pending") && (
                                 <button
                                   disabled={updatingId === leaveId}
                                   onClick={() => openRejectModal(leaveId)}

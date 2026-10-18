@@ -185,6 +185,7 @@ export const createEmployeeSchema = z.object({
   status: z
     .enum([
       "active",
+      "on_leave",
       "inactive",
       "on_notice",
       "resigned",
@@ -212,6 +213,15 @@ export const createEmployeeSchema = z.object({
   // Child Info
   identities: identityInputSchema.optional(),
   // emergency_contacts: z.array(emergencyContactInputSchema).optional().default([]),
+});
+
+// Editing a record must not apply creation defaults to fields the form omitted.
+export const updateEmployeeSchema = createEmployeeSchema.omit({ identities: true }).partial().extend({
+  preferred_language: createEmployeeSchema.shape.preferred_language.removeDefault().optional(),
+  employee_category: createEmployeeSchema.shape.employee_category.removeDefault().optional(),
+  employment_type: createEmployeeSchema.shape.employment_type.removeDefault().optional(),
+  status: createEmployeeSchema.shape.status.removeDefault().optional(),
+  system_role: createEmployeeSchema.shape.system_role.removeDefault().optional(),
 });
 
 // -----------------------------------------------------------------------------
@@ -438,18 +448,22 @@ export const createLeaveRequestSchema = z.object({
   }),
   start_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "Start date must be in YYYY-MM-DD format"),
+    .date("Start date must be a valid date in YYYY-MM-DD format"),
   end_date: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/, "End date must be in YYYY-MM-DD format"),
+    .date("End date must be a valid date in YYYY-MM-DD format"),
   total_days: z.number({
     message: "Total days must be a number",
-  }),
+  }).positive("Leave days must be greater than zero").max(366),
   half_day_type: z
     .enum(["full_day", "first_half", "second_half"])
     .default("full_day"),
   status: z.enum(["Pending", "Approved", "Rejected"]).default("Pending"),
   reason: optionalText,
+}).refine((data) => data.end_date >= data.start_date, {
+  message: "End date must be on or after the start date", path: ["end_date"],
+}).refine((data) => data.half_day_type === "full_day" || data.start_date === data.end_date, {
+  message: "A half-day request must cover a single date", path: ["end_date"],
 });
 
 

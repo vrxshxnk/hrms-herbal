@@ -3,6 +3,7 @@ import { getPool, withTranscations } from "@/app/lib/api/client";
 import { parseJson } from "@/app/lib/api/validation";
 import { createEmployeeSchema } from "@/app/validations/phase1_schema";
 import { getAuthenticatedUser } from "@/app/lib/auth/auth";
+import { hasHRRole } from "@/app/lib/auth/roles";
 import {createKeycloakUser,deleteKeycloakUser} from "../auth/keycloak/keycloak-admin";
 
 
@@ -17,7 +18,7 @@ const employeeStrategies = {
     let query = `
       SELECT
         e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
-        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.display_name, e.profile_photo_url, e.gender, e.date_of_birth, e.marital_status, e.work_email,
         e.department_id, e.designation_id, e.reporting_manager_id,
         e.mobile_number, e.keycloak_id, e.status, e.employment_type,
         e.joining_date, e.system_role,
@@ -35,7 +36,7 @@ const employeeStrategies = {
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
       WHERE 1=1
     `;
-    const params: any[] = [];
+    const params: unknown[] = [];
     let idx = 1;
 
     if (status) {
@@ -63,7 +64,7 @@ const employeeStrategies = {
     let query = `
       SELECT
         e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
-        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.display_name, e.profile_photo_url, e.gender, e.date_of_birth, e.marital_status, e.work_email,
         e.department_id, e.designation_id, e.reporting_manager_id,
         e.mobile_number, e.keycloak_id, e.status, e.employment_type,
         e.joining_date, e.system_role,
@@ -81,7 +82,7 @@ const employeeStrategies = {
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
       WHERE (e.reporting_manager_id = $1 OR e.super_manager_id = $1 OR e.id = $1)
     `;
-    const params: any[] = [actorId];
+    const params: unknown[] = [actorId];
     let idx = 2;
 
     if (status) {
@@ -104,7 +105,7 @@ const employeeStrategies = {
     let query = `
       SELECT
         e.id, e.employee_code, e.first_name, e.middle_name, e.last_name,
-        e.display_name, e.profile_photo_url, e.gender, e.work_email,
+        e.display_name, e.profile_photo_url, e.gender, e.date_of_birth, e.marital_status, e.work_email,
         e.department_id, e.designation_id, e.reporting_manager_id,
         e.mobile_number, e.keycloak_id, e.status, e.employment_type,
         e.joining_date, e.system_role,
@@ -122,7 +123,7 @@ const employeeStrategies = {
       LEFT JOIN employees rm ON e.reporting_manager_id = rm.id
       WHERE e.id = $1
     `;
-    const params: any[] = [actorId];
+    const params: unknown[] = [actorId];
     let idx = 2;
 
     if (search) {
@@ -209,9 +210,7 @@ export async function POST(request: Request) {
 
   try {
     const authUser = await getAuthenticatedUser(request);
-    const isHR = authUser.roles.some((r) =>
-      ["hr", "hradmin", "hr_admin"].includes(r.toLowerCase()),
-    );
+    const isHR = hasHRRole(authUser.roles);
 
     if (!isHR) {
       return apiError(
@@ -235,8 +234,8 @@ export async function POST(request: Request) {
       });
       createdKeycloakId =  keycloakId;
       temporaryPassword = generatedPassword;
-    } catch (kcError: any) {
-      if (kcError.message?.startsWith("USER_EXISTS")) {
+    } catch (kcError: unknown) {
+      if (kcError instanceof Error && kcError.message.startsWith("USER_EXISTS")) {
         return apiError(
           "CONFLICT",
           "An account with this email already exists in Keycloak",
@@ -381,7 +380,7 @@ export async function POST(request: Request) {
       { success: true, message: "successfully created the employee" },
       201,
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     if (createdKeycloakId) {
       await deleteKeycloakUser(createdKeycloakId);
     }
