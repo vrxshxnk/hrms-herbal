@@ -85,8 +85,6 @@ export async function POST(request: Request) {
     }
 
     const { training_module_id, department_id, start_date, due_date, notes } = validationResult.data;
-
-    // Use transaction to create schedule and auto-initialize progress rows for employees in the department
     const result = await withTranscations(async (client) => {
       const scheduleQuery = `
         INSERT INTO training_schedules (
@@ -113,7 +111,6 @@ export async function POST(request: Request) {
         ON CONFLICT (training_schedule_id, employee_id) DO NOTHING;
       `;
       await client.query(initProgressQuery, [newSchedule.id, department_id]);
-
       return newSchedule;
     });
 

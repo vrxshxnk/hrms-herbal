@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     const claims = await getAuthenticatedUser(request);
     const keycloak_id = claims.sub;
-    const email = claims.email;
+    const email = claims.email;   
     if (!keycloak_id || !email) {
       return apiError(
         "BAD_REQUEST",
@@ -42,15 +42,8 @@ export async function POST(request: Request) {
 
     employee = byKeycloakId.rows[0];
 
-    if (!employee) {
-      return apiError(
-        "NOT_FOUND",
-        "Employee record not found in DB. Please contact HR.",
-        404,
-      );
-    }
-
-    if (!employee) {
+    // 2. Agar keycloak_id se nahi mila, toh work_email se check karein (First-time login ke liye)
+    if (!employee && email) {
       const byEmail = await client.query(
         `
           SELECT
@@ -69,6 +62,7 @@ export async function POST(request: Request) {
       employee = byEmail.rows[0];
     }
 
+   // 3. Agar dono se nahi mila, tab hi error throw karein ("Employee record not found, contact HR")
     if (!employee) {
       return apiError(
         "NOT_FOUND",
@@ -79,9 +73,10 @@ export async function POST(request: Request) {
     const needsKeycloakIdUpdate =
       !employee.keycloak_id || employee.keycloak_id !== keycloak_id;
     const needsRoleUpdate =
-      keycloak_role && employee.system_role !== keycloak_role;
+      keycloak_role && employee.system_role !== keycloak_role;   
     let finalEmployee = employee;
 
+    // 4. Agar keycloak_id link nahi tha ya role change hua hai toh update karein
     if (needsKeycloakIdUpdate || needsRoleUpdate) {
       finalEmployee = await withTranscations(async (txClient) => {
         const updateQuery = `
