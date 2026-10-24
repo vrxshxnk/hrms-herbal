@@ -16,7 +16,7 @@ export async function GET(request: Request) {
     let params: any[] = [];
 
     if (user.system_role === "hr" || user.system_role === "admin") {
-      // HR/Admin can view all schedules with module & department details
+      // HR/Admin can view all schedules with module & department details + video fields
       query = `
         SELECT 
           ts.*,
@@ -24,12 +24,25 @@ export async function GET(request: Request) {
           tm.code as module_code,
           tm.category as module_category,
           tm.duration_seconds,
+          tm.video_url,
+          tm.video_provider,
+          tm.thumbnail_url,
+          tm.completion_threshold,
+          tm.requires_acknowledgement,
+          etp.status as employee_status,
+          etp.watch_percent,
+          etp.max_watched_seconds,
+          etp.last_position_seconds,
+          etp.video_completed_at,
+          etp.acknowledged_at,
           d.name as department_name
         FROM training_schedules ts
         JOIN training_modules tm ON ts.training_module_id = tm.id
         JOIN departments d ON ts.department_id = d.id
+        LEFT JOIN employee_training_progress etp ON etp.training_schedule_id = ts.id AND etp.employee_id = $1
         ORDER BY ts.start_date DESC;
       `;
+      params = [user.id];
     } else {
       // Employees see only schedules assigned to their department
       query = `
@@ -49,9 +62,11 @@ export async function GET(request: Request) {
           etp.max_watched_seconds,
           etp.last_position_seconds,
           etp.video_completed_at,
-          etp.acknowledged_at
+          etp.acknowledged_at,
+          d.name as department_name
         FROM training_schedules ts
         JOIN training_modules tm ON ts.training_module_id = tm.id
+        JOIN departments d ON ts.department_id = d.id
         JOIN employees e ON e.id = $1
         LEFT JOIN employee_training_progress etp ON etp.training_schedule_id = ts.id AND etp.employee_id = e.id
         WHERE ts.department_id = e.department_id AND ts.status IN ('scheduled', 'active')

@@ -8,6 +8,7 @@ import {
   BookOpen,
   AlertCircle,
   Award,
+  VideoOff,
 } from "lucide-react";
 
 interface TrainingItem {
@@ -39,6 +40,7 @@ export default function EmployeeTrainingPage() {
     try {
       const res = await fetch("/api/v1/training/schedules");
       const json = await res.json();
+      console.log("scheduel aaya :",json);
       if (json.data?.success || json.success) {
         setTrainings(json.data?.data || json.data || []);
       }
@@ -52,9 +54,10 @@ export default function EmployeeTrainingPage() {
   // Background progress tracking when modal is open
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (selectedTraining) {
+    console.log("seelctyed 1",selectedTraining);
+    if (selectedTraining && selectedTraining.video_url) {
       let currentWatched = selectedTraining.max_watched_seconds || 0;
-      
+      console.log("selected trainign H",selectedTraining);
       timer = setInterval(() => {
         currentWatched += 10; // add 10 seconds every interval
         if (currentWatched <= selectedTraining.duration_seconds) {
@@ -115,16 +118,16 @@ export default function EmployeeTrainingPage() {
 
   const getEmbedUrl = (url: string) => {
     try {
-      if (!url) return "";
+      if (!url || typeof url !== "string" || url.trim() === "") return "";
       if (url.includes("embed/")) return url;
       const regExp =
         /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
       const match = url.match(regExp);
       return match && match[2].length === 11
-        ? `https://www.youtube.com/embed/${match?.[2]}?autoplay=1`
+        ? `https://www.youtube.com/embed/${match[2]}?autoplay=1`
         : url;
     } catch {
-      return url;
+      return "";
     }
   };
 
@@ -221,7 +224,7 @@ export default function EmployeeTrainingPage() {
 
                   <button
                     onClick={() => setSelectedTraining(item)}
-                    className="w-full py-2.5 px-4 bg-[#1b4332] hover:bg-[#2d6a4f] text-white font-medium rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-emerald-500/10"
+                    className="w-full py-2.5 px-4 bg-[#1b4332] hover:bg-[#2d6a4f] text-white font-medium rounded-xl text-sm transition-all flex items-center justify-center gap-2 shadow-sm shadow-emerald-500/10 cursor-pointer"
                   >
                     <PlayCircle className="w-4 h-4" />
                     {item.employee_status === "completed"
@@ -235,7 +238,7 @@ export default function EmployeeTrainingPage() {
         </div>
       )}
 
-      {/* Video Player Modal with Tracking */}
+      {/* Video Player Modal with Safe Rendering */}
       {selectedTraining && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-6 shadow-2xl animate-in fade-in zoom-in duration-200 border border-slate-100">
@@ -245,20 +248,28 @@ export default function EmployeeTrainingPage() {
               </h3>
               <button
                 onClick={() => setSelectedTraining(null)}
-                className="text-slate-400 hover:text-slate-600 font-bold text-lg px-2"
+                className="text-slate-400 hover:text-slate-600 font-bold text-lg px-2 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div className="aspect-video bg-slate-900 rounded-xl overflow-hidden relative flex items-center justify-center">
-              <iframe
-                src={getEmbedUrl(selectedTraining.video_url)}
-                title={selectedTraining.module_title}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
+              {getEmbedUrl(selectedTraining.video_url) ? (
+                <iframe
+                  src={getEmbedUrl(selectedTraining.video_url)}
+                  title={selectedTraining.module_title}
+                  className="w-full h-full border-0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center text-slate-400 space-y-2 p-6 text-center">
+                  <VideoOff className="w-10 h-10 text-slate-500" />
+                  <p className="text-sm font-medium text-slate-300">No valid video URL provided for this module.</p>
+                  <p className="text-xs text-slate-500">Please check the module configuration in HR management.</p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center pt-2">
@@ -268,7 +279,7 @@ export default function EmployeeTrainingPage() {
               </span>
               <button
                 onClick={() => setSelectedTraining(null)}
-                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-all"
+                className="px-5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-medium rounded-xl transition-all cursor-pointer"
               >
                 Close & Save Progress
               </button>
