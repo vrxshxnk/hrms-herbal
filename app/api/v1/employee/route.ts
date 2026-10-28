@@ -384,6 +384,9 @@ export async function POST(request: Request) {
     if (createdKeycloakId) {
       await deleteKeycloakUser(createdKeycloakId);
     }
+    if ((error as { code?: string; constraint?: string })?.code === "23505" && (error as { constraint?: string }).constraint === "employees_employee_code_key") {
+      return apiError("CONFLICT", "Another employee already has this employee code (Pay Code)", 409);
+    }
     console.error("Error creating employee:", error);
     return apiError("INTERNAL_ERROR", "Failed to create employee", 500);
   }

@@ -12,7 +12,6 @@ async function main() {
     const required = {
       employees: ["id", "employee_code", "keycloak_id", "reporting_manager_id", "super_manager_id", "profile_photo_url"],
       attendance_records: ["employee_id", "attendance_date", "check_in_time", "check_out_time", "working_hours", "overtime_hours", "provider_status", "shift_code", "is_manual_override", "imported_at"],
-      attendance_provider_employee_mappings: ["provider_code", "employee_id", "created_at", "updated_at"],
       leave_requests: ["employee_id", "leave_type_id", "status", "manager_approval_status", "manager_approved_by", "manager_action_at", "half_day_type", "approved_by", "action_taken_at", "rejection_reason"],
       employee_leave_balances: ["employee_id", "leave_type_id", "year", "total_leaves_avail", "used_leaves", "monthly_limit"],
       notifications: ["id"],

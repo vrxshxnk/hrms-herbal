@@ -66,16 +66,21 @@ the upgrade. The required attendance migrations are:
    manual-override flag, and import timestamp. Existing manual corrections are
    marked so later provider imports preserve them.
 2. `003_attendance_provider_mappings.sql`: provider Pay Code to employee mappings.
+3. `004_paycode_as_employee_code.sql`: the Pay Code is the HRMS employee code.
+   Copies any saved mappings onto `employees.employee_code`, then drops the
+   mapping table. It aborts without changes if a Pay Code already belongs to a
+   different employee.
 
-After confirming the backup, apply both in one transaction:
+After confirming the backup, apply them in one transaction:
 
 ```bash
 DOTENV_CONFIG_PATH=.env.production node -r dotenv/config scripts/migrate-deployment.cjs --apply
 DOTENV_CONFIG_PATH=.env.production node -r dotenv/config scripts/check-deployment.cjs
 ```
 
-The runner applies only 002 and 003, rolls back both if either fails, and exits
-nonzero on failure. It does not recreate the foundation or alter employee codes.
+The runner applies only 002, 003 and 004, rolls back all of them if any fails,
+and exits nonzero on failure. It does not recreate the foundation. 004 rewrites
+employee codes only for employees that had a saved Pay Code mapping.
 The check verifies columns required by these workflows and reports leave status
 constraints; it is not an exhaustive validator of the entire application schema.
 
@@ -90,6 +95,11 @@ constraint. The pre-migration backup archive passed `pg_restore --list` using
 PostgreSQL 17 client tools; this is an archive readability check, not a tested
 restore. Keep that backup. Do not rerun migrations as an automatic deployment
 step for this release.
+
+004 has not been applied yet. The app no longer reads the mapping table, so
+apply 004 with the runner above (after a fresh backup) before or together with
+deploying the build that removes Pay Code mapping. 002 and 003 are idempotent,
+so rerunning them alongside 004 is safe.
 
 ## Restart and verify
 

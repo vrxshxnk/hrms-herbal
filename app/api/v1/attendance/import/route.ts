@@ -29,17 +29,18 @@ export async function POST(request: Request) {
 
     const parsed = parsePerformanceRegister(await file.arrayBuffer());
     const client = await getPool().connect();
-    let mappings: { provider_code: string; employee_id: string }[];
+    let employees: { id: string; employee_code: string }[];
     try {
+      // The provider Pay Code is the HRMS employee code, so rows match employees directly.
       const result = await client.query(
-        "SELECT provider_code, employee_id FROM attendance_provider_employee_mappings WHERE provider_code = ANY($1::text[])",
+        "SELECT id, employee_code FROM employees WHERE employee_code = ANY($1::text[])",
         [parsed.employeeCodes],
       );
-      mappings = result.rows;
+      employees = result.rows;
     } finally {
       client.release();
     }
-    const employeeIds = new Map(mappings.map((mapping) => [mapping.provider_code, mapping.employee_id]));
+    const employeeIds = new Map(employees.map((employee) => [employee.employee_code, employee.id]));
     const validRows = parsed.rows.filter((row) => employeeIds.has(row.employeeCode));
     const unmatchedEmployeeCodes = parsed.employeeCodes.filter((code) => !employeeIds.has(code));
 
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       });
     }
     if (!validRows.length) {
-      return apiError("VALIDATION_ERROR", "No rows could be matched to saved provider Pay Code mappings", 422, { unmatchedEmployeeCodes });
+      return apiError("VALIDATION_ERROR", "No Pay Codes in this file match an HRMS employee code", 422, { unmatchedEmployeeCodes });
     }
 
     const imported = await withTranscations(async (tx) => {

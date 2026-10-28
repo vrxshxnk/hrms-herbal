@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Standalone CommonJS server utility. */
-// Explicitly applies the two attendance upgrades for an existing installation.
+// Explicitly applies the attendance upgrades for an existing installation.
 require("dotenv").config({ path: ".env.local", quiet: true });
 const { Client } = require("pg");
 const { readFileSync } = require("node:fs");
@@ -20,7 +20,7 @@ async function main() {
     await client.query("SET LOCAL statement_timeout = '60s'");
     const lock = await client.query("SELECT pg_try_advisory_xact_lock(726481, 203) AS acquired");
     if (!lock.rows[0].acquired) throw new Error("Another HRMS migration is running");
-    for (const file of ["002_attendance_provider_import.sql", "003_attendance_provider_mappings.sql"]) {
+    for (const file of ["002_attendance_provider_import.sql", "003_attendance_provider_mappings.sql", "004_paycode_as_employee_code.sql"]) {
       await client.query(readFileSync(resolve(__dirname, "../app/database/migrations", file), "utf8"));
       console.log("Applied in transaction:", file);
     }

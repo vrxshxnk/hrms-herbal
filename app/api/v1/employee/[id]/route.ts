@@ -148,6 +148,9 @@ export async function PATCH(
     }
     return ok(updatedRecord, { message: "Employee updated successfully", success:true });
   } catch (error) {
+    if ((error as { code?: string; constraint?: string })?.code === "23505" && (error as { constraint?: string }).constraint === "employees_employee_code_key") {
+      return apiError("CONFLICT", "Another employee already has this employee code (Pay Code)", 409);
+    }
     console.error("Error updating employee:", error);
     return apiError("INTERNAL_ERROR", "Failed to update employee", 500);
   }

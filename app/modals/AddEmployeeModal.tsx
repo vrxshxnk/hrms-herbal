@@ -13,6 +13,7 @@ type AddEmployeeModalProps = {
 };
 
 const initialFormState = {
+  employee_code: "",
   fullName: "",
   work_email: "",
   mobile_number: "",
@@ -171,6 +172,7 @@ export const AddEmployeeModal = ({
       // Reset this draft when the caller opens a different employee record.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setFormData({
+        employee_code: employeeToEdit.employee_code || "",
         fullName:
           employeeToEdit.display_name ||
           `${employeeToEdit.first_name} ${employeeToEdit.last_name}`,
@@ -221,9 +223,8 @@ export const AddEmployeeModal = ({
       nameParts.length > 1 ? nameParts.slice(1).join(" ") : "N/A";
 
     const payload = {
-      employee_code: employeeToEdit
-        ? employeeToEdit.employee_code
-        : `EMP-${Date.now().toString().slice(-6)}`,
+      // The employee code is the attendance Pay Code; provider imports match on it.
+      employee_code: formData.employee_code.trim(),
       first_name,
       last_name,
       display_name: formData.fullName,
@@ -318,6 +319,22 @@ export const AddEmployeeModal = ({
               {successMsg}
             </div>
           )}
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+              Employee Code (Pay Code) *
+            </label>
+            <input
+              type="text"
+              name="employee_code"
+              required
+              maxLength={50}
+              placeholder="Same as the attendance Pay Code, e.g. 12034"
+              value={formData.employee_code}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-800 placeholder-slate-300 focus:outline-none focus:border-[#24563E]"
+            />
+          </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">
