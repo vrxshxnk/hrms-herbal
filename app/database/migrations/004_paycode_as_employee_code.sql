@@ -5,7 +5,7 @@ DO $$
 DECLARE
   conflicting TEXT;
 BEGIN
-  IF to_regclass('public.attendance_provider_employee_mappings') IS NULL THEN
+  IF to_regclass('attendance_provider_employee_mappings') IS NULL THEN
     RETURN;
   END IF;
 

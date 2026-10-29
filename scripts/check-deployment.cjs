@@ -16,12 +16,12 @@ async function main() {
       employee_leave_balances: ["employee_id", "leave_type_id", "year", "total_leaves_avail", "used_leaves", "monthly_limit"],
       notifications: ["id"],
     };
-    const columns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public'");
+    const columns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema()");
     const available = new Set(columns.rows.map((row) => `${row.table_name}.${row.column_name}`));
     const missing = Object.entries(required).flatMap(([table, names]) => names.filter((name) => !available.has(`${table}.${name}`)).map((name) => `${table}.${name}`));
     console.log("Missing required columns:", missing.length ? missing : "none");
     const constraints = await client.query(`SELECT conname, pg_get_constraintdef(oid) AS definition
-      FROM pg_constraint WHERE conrelid = to_regclass('public.leave_requests') AND contype = 'c'`);
+      FROM pg_constraint WHERE conrelid = to_regclass('leave_requests') AND contype = 'c'`);
     console.log("Leave constraints:", constraints.rows);
     const blockedWithdrawal = constraints.rows.some((row) => /\bstatus\b|\bmanager_approval_status\b/.test(row.definition) && !row.definition.includes("Withdrawn"));
     console.log("Leave withdrawal schema:", blockedWithdrawal ? "existing status constraints need to allow Withdrawn before deployment" : "no blocking check found");
