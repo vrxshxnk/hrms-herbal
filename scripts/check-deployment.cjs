@@ -15,6 +15,9 @@ async function main() {
       leave_requests: ["employee_id", "leave_type_id", "status", "manager_approval_status", "manager_approved_by", "manager_action_at", "half_day_type", "approved_by", "action_taken_at", "rejection_reason"],
       employee_leave_balances: ["employee_id", "leave_type_id", "year", "total_leaves_avail", "used_leaves", "monthly_limit"],
       notifications: ["id"],
+      training_modules: ["id", "code", "video_url", "duration_seconds"],
+      training_schedules: ["id", "training_module_id", "department_id", "start_date"],
+      employee_training_progress: ["id", "training_schedule_id", "employee_id", "watch_percent"],
     };
     const columns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = current_schema()");
     const available = new Set(columns.rows.map((row) => `${row.table_name}.${row.column_name}`));
