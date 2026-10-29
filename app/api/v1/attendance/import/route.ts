@@ -87,7 +87,8 @@ export async function POST(request: Request) {
           [
             employeeIds.get(row.employeeCode), row.attendanceDate, row.status,
             attendanceTimestamp(row.attendanceDate, row.checkInTime),
-            attendanceTimestamp(row.attendanceDate, row.checkOutTime, isOvernight(row.checkInTime, row.checkOutTime)),
+            // A 24h+ double shift can end at a later clock time than it started, still on the next day.
+            attendanceTimestamp(row.attendanceDate, row.checkOutTime, isOvernight(row.checkInTime, row.checkOutTime) || row.workingHours >= 24),
             row.workingHours, row.overtimeHours,
             row.providerStatus, row.shiftCode,
           ],

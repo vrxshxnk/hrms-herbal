@@ -13,6 +13,7 @@ export function isOvernight(checkIn: string | null, checkOut: string | null): bo
 }
 
 // The provider writes eight hours and 54 minutes as 8.54, not 8.54 decimal hours.
+// Double shifts exceed 24 hours (e.g. 24.02), so only the minutes are bounded.
 export function hoursMinutesToDecimal(value: unknown): number {
   if (value === null || value === undefined || String(value).trim() === "") return 0;
   const text = String(value).trim();
@@ -20,7 +21,7 @@ export function hoursMinutesToDecimal(value: unknown): number {
   const [hoursText, minutesText = "0"] = text.split(".");
   const hours = Number(hoursText);
   const minutes = Number(minutesText.padEnd(2, "0"));
-  if (minutes >= 60 || hours > 24 || (hours === 24 && minutes > 0)) {
+  if (minutes >= 60) {
     throw new Error(`Invalid H.MM hours value: ${text}`);
   }
   return Number((hours + minutes / 60).toFixed(2));
