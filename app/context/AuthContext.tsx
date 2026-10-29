@@ -62,25 +62,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [roles, setRoles] = useState<string[]>([]);
 
   const syncWithDatabase = useCallback(async () => {
-    try {
-      if (!keycloak.token) return;
-
-      const res = await fetch("/api/v1/auth/sync", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${keycloak.token}`,
-        },
+  try {
+    if (!keycloak.token) return;
+    const res = await fetch("/api/v1/auth/sync", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${keycloak.token}`,
+      },
+    });
+    const json = await res.json();
+    if (!res.ok || json.error) {
+      const errorMsg = json.error?.message || "Employee record not found, contact HR";
+      alert(errorMsg); 
+      keycloak.logout({
+        redirectUri: `${window.location.origin}/login`,
       });
-      const json = await res.json();
-      if (res.ok && json.data?.employee) {
-        setDbUser(json.data.employee);
-      } else if (res.ok && json.employee) {
-        setDbUser(json.employee);
-      }
-    } catch (error) {
-      console.error("Failed to sync employee with database:", error);
+      return;
     }
-  }, []);
+
+    if (json.data?.employee) {
+      setDbUser(json.data.employee);
+    } else if (json.employee) {
+      setDbUser(json.employee);
+    }
+  } catch (error) {
+    console.error("Failed to sync employee with database:", error);
+  }
+}, []);
 
   useEffect(() => {
     const originalFetch = window.fetch;
@@ -119,6 +127,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             keycloak.tokenParsed?.resource_access?.["hrms-app"]?.roles ?? [];
 
           const processedRoles = normalizeRoles([...realmRoles, ...clientRoles]);
+          console.log(" Keycloak Parsed Roles:", processedRoles); 
           setRoles(processedRoles);
 
           await syncWithDatabase();

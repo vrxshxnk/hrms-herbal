@@ -342,6 +342,67 @@ export const createEmployeeDocumentSchema = z.object({
 });
 
 
+export const createTrainingModuleSchema = z.object({
+  code: z
+    .string({ message: "Module code is required" })
+    .min(1, "Code cannot be empty")
+    .max(50, "Code cannot exceed 50 characters"),
+
+  title: z
+    .string({ message: "Title is required" })
+    .min(1, "Title cannot be empty")
+    .max(255, "Title cannot exceed 255 characters"),
+
+  description: z.string().nullable().optional(),
+
+  category: z
+    .string()
+    .min(1, "Category is required")
+    .default("general"),
+
+  video_url: z
+    .string({ message: "Video URL is required" })
+    .min(1, "Video URL cannot be empty"),
+
+  video_provider: z
+    .enum(["youtube", "vimeo", "gdrive", "self_hosted", "other"])
+    .default("youtube"),
+
+  thumbnail_url: z.string().nullable().optional(),
+
+  duration_seconds: z
+    .number({ message: "Duration in seconds is required and must be a number" })
+    .int("Duration must be an integer")
+    .positive("Duration must be greater than 0"),
+
+  completion_threshold: z
+    .number()
+    .int()
+    .min(1, "Completion threshold must be at least 1%")
+    .max(100, "Completion threshold cannot exceed 100%")
+    .default(100),
+
+  requires_acknowledgement: z.boolean().default(true),
+  is_mandatory: z.boolean().default(false),
+  is_active: z.boolean().default(true),
+});
+
+
+export const createTrainingScheduleSchema = z.object({
+  training_module_id: z.string().uuid(),
+  department_id: z.string().uuid(),
+  start_date: z.string(), // Format: YYYY-MM-DD
+  due_date: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+});
+
+export const updateTrainingProgressSchema = z.object({
+  training_schedule_id: z.string().uuid(),
+  watch_seconds: z.number().nonnegative(),
+  current_position: z.number().nonnegative(),
+  acknowledged: z.boolean().optional(),
+});
+
 
 export const reimbursementCategoryEnum = z.enum([
   "TRAVEL",
